@@ -22,6 +22,18 @@ PURE_FIGURE_ROLES = {"pure_graph", "pure_geometry", "pure_illustration", "pure_a
 _TEXT_MATH = re.compile(r"\\[A-Za-z]+|[\^_]|\b(?:sqrt|over|cases|matrix)\b|(?:[A-Za-z][0-9]?\s*[=<>≤≥]|[∑∫√])")
 
 
+def _formula_control_characters(value: str) -> list[str]:
+    """Return literal control characters that cannot be part of a formula source.
+
+    Python string literals such as ``"\\alpha"`` turn ``\\a`` into BEL unless
+    they are raw strings.  Hanword can silently drop that character during a
+    round trip, producing an altered formula even though the remaining script
+    appears syntactically valid.  Formula source is intentionally one-line,
+    so every C0/C1 control character is a hard input error.
+    """
+    return [f"U+{ord(char):04X}" for char in value if ord(char) < 32 or 0x7F <= ord(char) <= 0x9F]
+
+
 def walk(value: Any, path: str = "") -> Iterator[tuple[str, dict[str, Any]]]:
     if isinstance(value, dict):
         yield path, value
@@ -74,7 +86,14 @@ def audit_authoring_items(items: list[dict[str, Any]], *, asset_root: str | Path
                     findings.append({**context, "code": "AUTHORING_AMBIGUOUS_CONTENT"})
                 if kind in EQUATION_KINDS and "segments" not in block:
                     try:
-                        result = compile_equation(block.get("script") or block.get("source") or "", dialect=block.get("script_language", ""), operator_policies=block.get("operator_policies"))
+                        source = block.get("script") or block.get("source") or ""
+                        if not isinstance(source, str):
+                            raise ValueError("formula source must be a string")
+                        controls = _formula_control_characters(source)
+                        if controls:
+                            findings.append({**context, "code": "FORMULA_CONTROL_CHARACTER", "detail": controls})
+                            continue
+                        result = compile_equation(source, dialect=block.get("script_language", ""), operator_policies=block.get("operator_policies"))
                         equations.append({**context, **result.to_dict()})
                     except (EquationCompileError, ValueError, TypeError) as exc:
                         findings.append({**context, "code": getattr(exc, "code", "FORMULA_INPUT_INVALID"), "detail": str(exc)})

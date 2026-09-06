@@ -28,6 +28,13 @@ def test_verified_label_does_not_bypass_unknown_command(tmp_path):
     assert "UNSUPPORTED_COMMAND" in codes(value, tmp_path)
 
 
+def test_python_escape_control_character_in_formula_source_fails_closed(tmp_path):
+    value = item()
+    # This emulates a non-raw Python literal "\\alpha", where \\a became BEL.
+    value["problem_blocks"][0]["script"] = "\x07lpha+x"
+    assert "FORMULA_CONTROL_CHARACTER" in codes(value, tmp_path)
+
+
 def test_missing_dialect_or_math_in_native_text_fails(tmp_path):
     value = item()
     value["problem_blocks"][0].pop("script_language")
