@@ -68,7 +68,8 @@ checkpoint until the block is transcribed or the item is removed from scope.
   figure has exactly one owning `item_id`.
 - Body text uses 함초롬돋움 11 pt and 160% line spacing.  Paragraph spacing is
   native margins (0 pt before, 2 pt after); blank-line spacing is forbidden.
-  Justification must not stretch a short/final body line.
+  Body paragraphs default to left alignment, as in the accepted reflow pilot.
+  A user-requested alternative alignment must not stretch short/final lines.
 - Equations are editable `eqed` objects using `HYhwpEQ`, 11 pt, and HWPX
   `baseUnit=1100`, with a non-empty script.  The reviewed source count,
   HWPX, HWP, COM, and rendered-PDF equation counts must form one chain.
@@ -78,19 +79,75 @@ checkpoint until the block is transcribed or the item is removed from scope.
   conditions, matrices, and vector symbols must remain structured native
   equation content rather than plain text.
 
-Reviewed chunks may also contain semantic diagrams (`representation:
-native_semantic` or a graph/key-point description) without a raster path. The
-writer must materialise those as editable tables/text plus native equations;
-it must never invent a screenshot or silently drop the diagram. Raster figures
-are accepted only with a tight crop, SHA-256, owner, and explicit pure
-graph/geometry/illustration reason. Semantic diagrams are excluded from the
-BinData image count but remain subject to visual coordinate, label, and
-numeric-value review.
+**Correction to the earlier diagram rule:** diagram descriptions are review
+metadata, not substitute figures. A graph, net, card/bag illustration, region
+partition, or geometric drawing must remain an actual faithful drawing or an
+approved tight pure-figure crop. A prose description, list of geometric
+relations, or table describing shapes does not preserve the original figure.
+`native_semantic`, `figure_reference`, and similar records cannot reach the
+writer until an implemented, source-checked drawing or approved crop exists.
+An ordinary source table can remain a native table; that does not authorize
+replacing an arbitrary diagram by a table. Missing assets are hard failures.
+Every retained crop needs exact source region, owner, role and actual SHA-256.
 
-Before `EquationCreate`, an explicit allow-list may normalize source shorthands
-such as `\\times`, `\\Pi`, `\\leq`, escaped braces, and Unicode operators into
-HancomEQN tokens. Unsupported raw backslash commands, empty scripts, and
-plain-text/image formula fallbacks remain hard failures.
+Before `EquationCreate`, use an explicit source dialect. `latex` is compiled by
+`app/hwp_equation_compiler.py`; `hancom` is conservatively validated and is not
+misrepresented as a fully parsed source MathIR. Auto-detection and mixed-dialect
+regex stripping are forbidden. Unknown commands are errors, never identifiers.
+TeX atom scope is retained (`x^12` is not silently interpreted as `x^{12}`);
+reviewers write explicit groups when the source exponent is multi-character.
+Visible escaped set braces remain visible; they cannot become grouping braces.
+The compiler produces source-spanned presentation structure, not proof that an
+OCR transcript agrees with the PDF. Operator exceptions (a source-written
+lower-only sum or a bare operator symbol) must target the particular source
+operator offset and have separate reviewed source evidence.
+
+Run `app/hwp_authoring_preflight.py` on the **actual ordered authoring blocks**,
+including nested table/choice cells, not a parallel self-reported count list.
+It rejects missing dialects, unsupported formula commands, formula markup in
+text, untyped mathematical cells, embedded OCR hard line breaks, description
+figures, changed/missing assets, and content fields ignored by a text wrapper.
+Check completeness metadata against the actual block lists; equal declared
+counts alone do not prove that all source sentences or formulas are present.
+
+`app/hwp_native_equation_writer.py` inserts the compiled script exactly once,
+without a second lossy converter. Reopen both HWPX and binary HWP and compare
+every COM equation's script, order, and BaseUnit with the compiled ledger.
+Count equality alone is insufficient. Native readback still does not prove
+visible layout: render and inspect matrices/cases column spacing, invisible
+delimiters, accents, bounds and nested structures before release.
+
+Keep `build_status`, syntax/asset audit status, source-fidelity status and final
+release status distinct. A generated document is `REVIEW_REQUIRED` while
+source-region/formula evidence, full text/table/figure comparison, all-page
+layout, or native endnote mapping/copy-move evidence remains missing. Never
+convert a count/style PASS or a stored VERIFIED label into a final PASS.
+
+Synthetic checks (no real exam content):
+
+```powershell
+python tools/hwp_authoring_preflight.py reviewed-native-blocks.json --asset-root LOCAL_WORKSPACE --json authoring-qa.json
+python -m pytest -q tests/test_hwp_equation_compiler.py tests/test_hwp_authoring_preflight.py tests/test_hwp_native_equation_writer.py tests/test_hwp_source_order.py tests/test_hwpx_content_snapshot.py
+```
+
+Merge reviewed chunks against the explicit ordered source inventory with
+`app.hwp_source_order.order_reviewed_items`. Lexical ID order, chunk filenames,
+and queue indexes are not source order. Reject duplicate/unknown IDs; require
+full coverage by default. An explicitly partial work checkpoint must retain
+every missing ID and the `INCOMPLETE` status. A candidate source inventory is
+not made verified by ordering it correctly.
+
+Compare saved pre-endnote and endnote content with
+`app.hwpx_content_snapshot.read_hwpx_snapshot`: retain semantic paragraphs,
+native equation scripts, table cell order/spans and package picture hashes.
+Only empty paragraphs, paragraph-edge whitespace, automatic numbering and
+layout metadata are ignored. Check note bodies against the corresponding
+solution checkpoint and the remaining problem body against the problem
+checkpoint. Unsupported visible objects fail this comparison rather than being
+silently ignored. This proves checkpoint preservation, not source-PDF fidelity;
+it also does not replace the real HWP copy/move and visual layout checks.
+
+Hancom syntax reference: [official equation command explanations](https://help.hancom.com/hoffice/multi/ko_kr/hwp/insert/equation/equation%28explanation%29.htm).
 
 ## Endnote release gate
 

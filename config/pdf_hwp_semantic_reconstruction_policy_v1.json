@@ -22,6 +22,9 @@
     "native_condition_box_kind": "native_table",
     "native_table_kind": "native_table",
     "pure_figure_only": true,
+    "diagram_description_substitution": false,
+    "missing_asset_fallback": false,
+    "actual_ordered_blocks_preflight": "app.hwp_authoring_preflight.audit_authoring_items",
     "forbidden_image_roles": ["page_capture", "question_capture", "body_capture", "solution_body_capture", "screenshot"]
   },
   "typography": {
@@ -30,7 +33,7 @@
     "body_line_spacing_percent": 160.0,
     "body_space_before_pt": 0.0,
     "body_space_after_pt": 2.0,
-    "body_alignment": "justify",
+    "body_alignment": "left",
     "blank_line_spacing_forbidden": true,
     "justify_stretch_forbidden": true
   },
@@ -40,6 +43,12 @@
     "font_size_pt": 11.0,
     "base_unit": 1100,
     "script_required": true,
+    "explicit_source_dialect_required": true,
+    "unknown_command_policy": "fail_without_stripping",
+    "compiler": "app.hwp_equation_compiler.compile_equation",
+    "native_writer": "app.hwp_native_equation_writer.insert_compiled_equation",
+    "readback_compare": ["script", "order", "BaseUnit"],
+    "syntax_pass_is_source_verification": false,
     "chain": ["source_reviewed", "hwpx", "hwp", "com", "rendered_pdf"]
   },
   "endnotes": {
@@ -54,6 +63,9 @@
     "reopen_com": true,
     "rendered_pdf": true,
     "visual_review": true,
+    "native_checkpoint_content_snapshot": "app.hwpx_content_snapshot.read_hwpx_snapshot",
+    "source_order_and_coverage": "app.hwp_source_order.order_reviewed_items",
+    "partial_scope_is_final_pass": false,
     "source_pdf_and_hwp_files_stay_outside_git": true
   },
   "fail_codes": [
