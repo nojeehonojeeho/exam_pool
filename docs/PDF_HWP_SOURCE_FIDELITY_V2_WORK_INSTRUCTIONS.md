@@ -234,3 +234,57 @@ gate 및 실제 runner/packager 연동이다. 새 파일명·API·CLI 옵션은 
 실제 문장·수식 전사·문항 원장, HWP/HWPX, 원문 그림/crop, 화면 캡처, 실제 자료 감사
 증거는 로컬에 보존하고 커밋하지 않는다. 문서 반영과 구현·실제 제작·검증·원격 푸시의
 완료 여부를 각각 보고한다.
+
+## 12. 진행률·raw finding·root cause의 구분
+
+`scope_item_count`, `reconstructed_item_count`, `evidence_closed_item_count`와
+`evidence_open_item_count`를 별도 필드로 기록한다. 예를 들어 `22/106`은 제작된 문항
+수가 아니라 원본 영역·문장·수식·특수 블록·해설 대응 증거가 닫힌 문항 수이다.
+
+검수기는 모든 세부 finding을 `raw_finding_count`로 보존한다. raw finding 하나가 실제
+독립 오타 하나라는 뜻은 아니다. 같은 원본 증거 미종결 때문에 여러 하위 finding이 동시에
+발생할 수 있다.
+
+각 finding에는 보수적인 `root_cause_id` 후보를 붙일 수 있지만, 이는 진단용 집계이며
+자동 해결·자동 삭제·PASS 승격에 사용하지 않는다. 문항 ID, semantic block anchor,
+오류 범주가 모두 일치할 때만 후보를 묶고, 적분 상한 오독·조건표 행 누락·그래프 라벨
+손상·미주 오연결처럼 독립된 내용 오류는 합치지 않는다.
+
+상위 원인을 수정한 뒤 같은 입력 hash와 정책 버전으로 strict validator를 재실행하고,
+raw finding이 실제로 감소했는지 확인한다. `evidence_open_item_count > 0`,
+`raw release finding > 0`, `release_blocker_count > 0`이면 최종 PASS를 금지한다.
+진행률을 줄여 보이게 하거나 finding을 병합하여 게이트를 우회하는 행위는 금지한다.
+
+### 12.1 문항 단위 연쇄와 필수 원장
+
+각 수식은 다음 연쇄를 하나의 occurrence ID로 추적한다.
+
+```text
+원본 PDF occurrence → SourceItemIR → MathIR → HWP dialect script
+→ writer occurrence → 저장 HWPX equation → HWP COM 개체 → 재열림 equation
+```
+
+문항별 원장에는 최소 `finding_id`, `item_id`, `document_role`, `source_page`,
+`source_region`, `formula_occurrence_id`, `rule_id`, `stage`, `evidence_key`,
+`root_cause_id`, `parent_finding_id`, `source_hash`, `manifest_hash`, `code_hash`,
+`severity`, `status`, `resolution_evidence`, `first_seen_run_id`, `last_seen_run_id`를 둔다.
+
+실행 폴더에는 `strict-findings.jsonl`, `root-cause-summary.json`,
+`evidence-closure-summary.json`, `formula-occurrence-ledger.jsonl`,
+`problem-solution-linkage.json`, `work-queue.json`, `build-and-qa.json`을 남긴다.
+원본·manifest·crop·compiler·writer·code hash가 바뀌면 관련 closure와 과거 QA를 무효화한다.
+
+### 12.2 전체본 차단과 검수 작업의 분리
+
+전체본 writer가 차단되어도 evidence-open 문항의 원본 대조·수식·도형·해설 연결 작업은
+계속한다. 기존 checkpoint는 입력 hash가 유지되고 최신 v2 재검증을 통과한 경우에만
+재사용한다. `VERIFIED_SUBSET` 또는 과거 PASS만으로 전체본 PASS를 만들 수 없다.
+
+checkpoint의 `CHECKPOINT_VERIFIED_NOT_BOOK_FINAL` 상태는 최종 evidence-closed나 PASS가
+아니다. 재사용 가능성은 `work/build_checkpoint_closure_candidates.py`가 생성하는
+`candidate_only` 원장으로 기록하고, 부모 전체 원장에 다시 연결한 뒤 최신 v2 게이트를
+재실행한다. 이 원장은 raw finding을 삭제하거나 evidence-open 수를 줄이지 않는다.
+
+문항 작업은 번호 순서만이 아니라 원본 페이지·단원·수식 root cause·특수 블록 유형별
+큐로 묶는다. 일반 문항은 600dpi, 첨자·부등호·분수선·근호 끝·조합 표기·도형 라벨은
+900dpi crop을 추가한다.

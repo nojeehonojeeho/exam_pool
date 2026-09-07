@@ -38,6 +38,13 @@ from .pdf_hwp_pipeline_models import (
     DraftExtractionError,
     UnsupportedDraftLayoutError,
 )
+from .pdf_hwp_source_fidelity_v2 import (
+    SOURCE_REGION_LAYOUT,
+    SourceFidelityError,
+    page_setups_from_pdf,
+    source_region_layout_from_manifest,
+    normalize_content_blocks,
+)
 
 
 DEFAULT_CROP_DPI: Final = 300
@@ -346,6 +353,59 @@ def typeset_conversion(
         progress(PipelineProgress(PipelinePhase.PREPARING, 0, total))
     request.output_dir.mkdir(parents=True, exist_ok=True)
     units = preflight_units(request.units, request.layout_style)
+    source_layout = None
+    source_layout_report: dict[str, object] | None = None
+    if request.layout_mode == SOURCE_REGION_LAYOUT:
+        # Source-region mode is intentionally explicit.  If the caller does
+        # not provide measured page records, falling back to the old B4/base
+        # form would produce a plausible but geometrically false document.
+        layout_manifest = request.source_layout
+        if layout_manifest is None and request.source_pdf is not None:
+            page_setups = page_setups_from_pdf(request.source_pdf)
+            regions_by_page: dict[int, list[dict[str, object]]] = {}
+            for unit in request.units:
+                if unit.source_page is None:
+                    continue
+                for region in unit.source_regions:
+                    regions_by_page.setdefault(unit.source_page, []).append(dict(region))
+            layout_manifest = {
+                "mode": SOURCE_REGION_LAYOUT,
+                "pages": [
+                    {
+                        **page.as_dict(),
+                        "regions": regions_by_page.get(page.page_number, []),
+                    }
+                    for page in page_setups
+                ],
+                "regions": [],
+            }
+        if layout_manifest is None:
+            raise ConversionTypesetError(
+                detail="source_region_layout requires a measured source MediaBox layout"
+            )
+        try:
+            source_layout = source_region_layout_from_manifest(layout_manifest)
+        except SourceFidelityError as exc:
+            raise ConversionTypesetError(detail=str(exc)) from exc
+        # A source-region build must expose semantic blocks to the writer
+        # boundary.  Legacy markdown-only units remain supported for
+        # item_reflow but cannot silently claim source-region fidelity.
+        for unit in request.units:
+            if not unit.content_blocks:
+                raise ConversionTypesetError(
+                    detail=f"item {unit.item_number}: source_region_layout requires typed content_blocks"
+                )
+            _, _, findings = normalize_content_blocks(unit.content_blocks, path=f"/items/{unit.item_number}/content_blocks")
+            if findings:
+                raise ConversionTypesetError(
+                    detail=f"item {unit.item_number}: source content schema failed ({findings[0].get('code')})"
+                )
+        source_layout_report = {
+            "schema_version": source_layout.as_dict()["schema_version"],
+            "mode": SOURCE_REGION_LAYOUT,
+            "pages": [page.as_dict() for page in source_layout.pages],
+            "regions": [region.as_dict() for region in source_layout.regions],
+        }
     markdown = "\n\n".join(unit.palette_markdown.strip() for unit in units) + "\n"
     if request.header_subject.strip():
         markdown = f"\\수능과목머리말\\\n{request.header_subject.strip()}\n{markdown}"
@@ -372,7 +432,10 @@ def typeset_conversion(
             for unit in units if unit.figure_asset_hashes
         },
         "rendered_pages": [path.name for path in generated.rendered_pages],
+        "layout_mode": request.layout_mode,
     }
+    if source_layout_report is not None:
+        manifest["source_region_layout"] = source_layout_report
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     if progress is not None:
         progress(PipelineProgress(PipelinePhase.COMPLETE, total, total))

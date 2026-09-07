@@ -92,3 +92,25 @@
 단위 테스트 통과는 실제 교재의 원문 충실도 증명이 아니다. 실제 진입점의 합성 통합
 실행과 COM/렌더 시험이 남으면 해당 층은 미완료로 보고한다. 실제 교재 제작은 별도
 승인된 작업에서 수행하고, 원문 검수 및 산출물 증거는 저장소 밖 로컬에 둔다.
+
+## E. 진행률과 root-cause 회귀
+
+| ID | 입력 | 기대 결과 |
+|---|---|---|
+| RC01 | 106개 중 22개만 evidence closed | `scope_item_count=106`, `evidence_closed_item_count=22`, `evidence_open_item_count=84`; 제작 문항 수로 해석하지 않음 |
+| RC02 | 한 원인에서 4개 raw finding 발생 | raw finding 4건을 보존하고 후보 원인 1건으로 진단 집계하되 release blocker는 4건으로 유지 |
+| RC03 | 서로 다른 수식·표·그림 오류가 같은 문항에 존재 | semantic anchor가 달라 각각 별도 root cause 후보로 유지 |
+| RC04 | root-cause grouping 후 재검증 | 동일 input hash·policy version의 strict 재실행에서 raw finding이 실제 감소한 경우에만 해결로 기록 |
+| RC05 | grouping이 모든 finding을 병합 | 테스트 실패; 자동 PASS·finding 삭제·N/A 변환 금지 |
+
+`root_cause_id`는 진단용 후보이며 `candidate_only=true`, `resolved=false`를 기본값으로
+한다. 최종 release gate는 raw finding과 evidence-open 문항을 직접 검사한다.
+
+| RC06 | 기존 subset만 VERIFIED_SUBSET이고 전체 범위가 열려 있음 | subset은 checkpoint로만 기록하고 전체 release PASS로 승격하지 않음 |
+| RC07 | source/manifest/code hash 변경 | 관련 evidence closure와 이전 QA를 무효화하고 재검수 큐에 넣음 |
+| RC08 | 수식 개수는 같지만 순서·소유 문항·표 셀이 다름 | occurrence ID/owner/order 비교에서 FAIL |
+| RC09 | 하위 finding status를 수동 변경 | strict 재실행에서 실제 소거되지 않으면 OPEN 유지 |
+| RC10 | HWP가 열리고 XML이 정상 | SourceFidelity·NativeEditability·EndnoteLinkage 독립 게이트 없이는 PASS 금지 |
+| RC11 | checkpoint status가 `CHECKPOINT_VERIFIED_NOT_BOOK_FINAL` | `candidate_only=true`, `evidence_closed_item_count` 불변, release PASS 금지 |
+| RC12 | checkpoint manifest hash·600/900dpi·작성기 수식 수·ZIP 무결성 중 하나가 누락/변경 | 해당 checkpoint를 재사용 후보에서 제외하고 원인 목록을 보존 |
+| RC13 | candidate-only 원장을 부모 전체 원장에 연결 | 최신 v2 strict 재실행 전에는 evidence-open 감소·raw finding 삭제·PASS 승격 금지 |

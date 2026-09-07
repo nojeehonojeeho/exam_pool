@@ -14,6 +14,7 @@ import re
 from typing import Any, Iterator
 
 from .hwp_equation_compiler import EquationCompileError, compile_equation
+from .pdf_hwp_source_fidelity_v2 import normalize_content_blocks
 
 
 EQUATION_KINDS = {"equation", "inline_equation", "display_equation"}
@@ -90,6 +91,28 @@ def audit_authoring_items(items: list[dict[str, Any]], *, asset_root: str | Path
         for role in ("problem_blocks", "solution_blocks"):
             if not isinstance(item.get(role), list) or not item[role]:
                 findings.append({"item_id": item_id, "code": "AUTHORING_BODY_MISSING", "path": role})
+            else:
+                # The writer consumes semantic blocks, not the legacy wrapper
+                # itself.  Expand the four historical nested text fields at
+                # the same boundary and reject unknown keys before any HWP
+                # operation can silently ignore them.
+                _, ledger, contract_findings = normalize_content_blocks(
+                    item[role], path=f"/{role}",
+                )
+                for contract in contract_findings:
+                    findings.append({
+                        "item_id": item_id,
+                        "code": contract.get("code", "AUTHORING_CONTENT_SCHEMA_INVALID"),
+                        "path": contract.get("path", f"/{role}"),
+                        **{key: value for key, value in contract.items() if key not in {"code", "path"}},
+                    })
+                if not ledger.entries:
+                    findings.append({
+                        "item_id": item_id,
+                        "code": "AUTHORING_CONTENT_SCHEMA_INVALID",
+                        "path": f"/{role}",
+                        "detail": "writer input must contain at least one typed block",
+                    })
             for path, block in walk(item.get(role, []), role):
                 kind = block.get("type", "")
                 context = {"item_id": item_id, "path": path}
@@ -125,7 +148,10 @@ def audit_authoring_items(items: list[dict[str, Any]], *, asset_root: str | Path
                         findings.append({**context, "code": "FORMULA_MARKUP_IN_TEXT", "detail": text})
                     if "\n" in text or "\r" in text:
                         findings.append({**context, "code": "NATIVE_PARAGRAPH_REQUIRED", "detail": "Use ordered semantic paragraphs, not embedded OCR line breaks."})
-                    ignored = sorted(set(block) & {"choices", "rows", "cells", "cases", "elements", "script"})
+                    ignored = sorted(set(block) & {
+                        "condition_box", "question", "table", "choices", "rows", "cells",
+                        "cases", "elements", "script",
+                    })
                     if ignored:
                         findings.append({**context, "code": "AUTHORING_UNCONSUMED_CONTENT", "fields": ignored})
                     if "figure" in str(block.get("role", "")) or text.startswith(("그림:", "〔도식", "〔도형")):

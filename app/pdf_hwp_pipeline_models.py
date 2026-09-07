@@ -5,7 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Literal, Protocol, TypeAlias
+from typing import Any, Literal, Mapping, Protocol, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic_core import PydanticCustomError
@@ -185,6 +185,12 @@ class ConversionUnit:
     palette_markdown: str
     figure_assets: tuple[FigureAsset, ...] = ()
     graphical_choice_assets: tuple[GraphicalChoiceAsset, ...] = ()
+    # v2 source-fidelity inputs are optional for the historical item-reflow
+    # path.  A source-region build must carry these fields through to the
+    # conversion contract instead of reconstructing geometry from B4 defaults.
+    content_blocks: tuple[Mapping[str, Any], ...] = ()
+    source_page: int | None = None
+    source_regions: tuple[Mapping[str, Any], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,6 +201,9 @@ class ConversionRequest:
     layout_style: LayoutStyle
     asset_dirs: tuple[Path, ...] = ()
     header_subject: str = ""
+    layout_mode: str = "item_reflow"
+    source_layout: Mapping[str, Any] | None = None
+    source_pdf: Path | None = None
 
 
 @dataclass(frozen=True, slots=True)
