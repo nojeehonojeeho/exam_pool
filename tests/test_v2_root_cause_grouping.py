@@ -28,3 +28,20 @@ def test_summary_preserves_raw_count_and_never_passes():
     assert summary["raw_finding_count"] == 2
     assert summary["release_blocker_count"] == 2
     assert summary["status"] == "DIAGNOSTIC_ONLY"
+
+
+def test_root_cause_id_uses_deterministic_source_key():
+    finding = {
+        "document_role": "solution",
+        "item_id": "HE-P-007",
+        "stage": "source-evidence",
+        "evidence_key": "formula-occurrence:HE-P-007-F-02",
+        "source_hash": "sha256:abc",
+        "path": "solution_blocks/2/segments/0",
+        "code": "FORMULA_OCCURRENCE_UNVERIFIED",
+    }
+    first = group_findings([finding])[0]
+    second = group_findings([dict(reversed(list(finding.items())))])[0]
+    assert first["root_cause_id"] == "solution|HE-P-007|source-evidence|formula-occurrence:HE-P-007-F-02|sha256:abc"
+    assert first["root_cause_id"] == second["root_cause_id"]
+    assert first["source_hash"] == "sha256:abc"
