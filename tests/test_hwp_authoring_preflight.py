@@ -119,3 +119,24 @@ def test_piecewise_compiles_as_one_native_equation_with_conditions(tmp_path):
     assert "cases" in result["equations"][0]["script"]
     value["problem_blocks"][0]["cases"][1]["condition"] = ""
     assert "PIECEWISE_NATIVE_REQUIRED" in codes(value, tmp_path)
+
+
+def test_source_aware_checkpoint_metadata_is_typed_and_traceable(tmp_path):
+    value = item()
+    value["problem_blocks"] = [{
+        "type": "choices",
+        "source_block_id": "SYN-1-P-01",
+        "source_block_sequence": 1,
+        "source_cells": [["① x^2"]],
+        "cells": [[[
+            {"type": "text", "text": "① "},
+            {"type": "equation", "source_script": "x^{2}", "script_language": "hancom", "source_cell": "① x^{2}"},
+        ]]],
+    }]
+    result = audit_authoring_items([value], asset_root=tmp_path)
+    codes_seen = {row["code"] for row in result["findings"]}
+    assert "AUTHORING_UNKNOWN_FIELD" not in codes_seen
+    assert "FORMULA_UNTYPED_CELL" not in codes_seen
+    assert "DIALECT_REQUIRED" not in codes_seen
+    assert result["equations"]
+    assert result["equations"][0]["script"] == "x^{2}"

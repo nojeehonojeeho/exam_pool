@@ -235,6 +235,17 @@ _COMMON_FIELDS = frozenset({
     "font", "font_family", "font_size_pt", "line_spacing_percent", "space_before_pt",
     "space_after_pt", "alignment", "justify_stretch", "base_unit", "label", "value",
     "index", "ord", "is_answer", "evidence", "custom_evidence", "kind",
+    # Source-aware checkpoint manifests carry these fields so every typed
+    # block remains traceable to its reviewed source span.  They are metadata
+    # at this boundary; the writer still consumes only the semantic payload.
+    "source_block_id", "source_block_sequence", "source_formula_id",
+    "source_occurrence_id", "source_region", "source_cell", "source_cells",
+    "source_cells_text", "source_script", "source_order", "source_page",
+    "source_column", "source_pdf", "source_evidence", "figure_id", "figure_ref",
+    "figure_refs", "caption", "note", "table_note", "equivalent_to", "width_mm",
+    "representation", "semantic_content", "grid", "contains_text", "headers",
+    "column_ratio", "cell_left_mm", "cell_right_mm", "cell_top_mm", "cell_bottom_mm",
+    "after_pt", "before_pt", "size_pt", "align", "content_role", "solution_role",
 })
 _NESTED_TEXT_FIELDS = frozenset({"condition_box", "question", "table", "choices"})
 _BLOCK_FIELDS: dict[str, frozenset[str]] = {
@@ -242,16 +253,23 @@ _BLOCK_FIELDS: dict[str, frozenset[str]] = {
     "question": _COMMON_FIELDS | frozenset({"prompt", "ask", "content"}),
     "condition_box": _COMMON_FIELDS | frozenset({"rows", "cells", "content", "table", "kind"}),
     "table": _COMMON_FIELDS | frozenset({"rows", "cells", "columns", "colspan", "rowspan", "kind"}),
-    "choices": _COMMON_FIELDS | frozenset({"items", "values", "layout", "expected_count", "kind"}),
+    "choices": _COMMON_FIELDS | frozenset({"items", "values", "cells", "choices", "layout", "expected_count", "kind"}),
     "choice": _COMMON_FIELDS | frozenset({"label", "value", "index", "ord", "content"}),
     "figure": _COMMON_FIELDS | frozenset({"kind", "content_role", "contains_text"}),
-    "equation": _COMMON_FIELDS | frozenset({"script", "source", "script_language", "operator_policies", "cases", "name", "kind"}),
-    "inline_equation": _COMMON_FIELDS | frozenset({"script", "source", "script_language", "operator_policies", "kind"}),
-    "display_equation": _COMMON_FIELDS | frozenset({"script", "source", "script_language", "operator_policies", "kind"}),
+    "equation": _COMMON_FIELDS | frozenset({"script", "source", "source_script", "script_language", "operator_policies", "cases", "name", "kind"}),
+    "inline_equation": _COMMON_FIELDS | frozenset({"script", "source", "source_script", "script_language", "operator_policies", "kind"}),
+    "display_equation": _COMMON_FIELDS | frozenset({"script", "source", "source_script", "script_language", "operator_policies", "cases", "name", "kind"}),
     "blank": _COMMON_FIELDS | frozenset({"width", "height", "kind"}),
 }
 _BLOCK_FIELDS["piecewise_function"] = _COMMON_FIELDS | frozenset({"script", "source", "script_language", "operator_policies", "cases", "name"})
 _BLOCK_FIELDS["figure_reference"] = _COMMON_FIELDS | frozenset({"kind"})
+_BLOCK_FIELDS["table_and_choices"] = _COMMON_FIELDS | frozenset({"table", "choices", "headers", "rows", "cells", "kind"})
+_BLOCK_FIELDS["problem_recap"] = _COMMON_FIELDS | frozenset({"choices", "components", "segments", "kind"})
+_BLOCK_FIELDS["proof_completion"] = _COMMON_FIELDS | frozenset({"lines", "kind"})
+_BLOCK_FIELDS["derivation"] = _COMMON_FIELDS | frozenset({"rows", "cells", "kind"})
+_BLOCK_FIELDS["statement_box"] = _COMMON_FIELDS | frozenset({"rows", "cells", "kind"})
+_BLOCK_FIELDS["figure_bundle"] = _COMMON_FIELDS | frozenset({"figures", "rows", "kind"})
+_BLOCK_FIELDS["figure_axis_labels"] = _COMMON_FIELDS | frozenset({"labels", "kind"})
 
 
 def _pointer(path: str, key: str | int) -> str:

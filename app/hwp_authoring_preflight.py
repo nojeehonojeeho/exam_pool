@@ -120,7 +120,11 @@ def audit_authoring_items(items: list[dict[str, Any]], *, asset_root: str | Path
                     findings.append({**context, "code": "AUTHORING_AMBIGUOUS_CONTENT"})
                 if kind in EQUATION_KINDS and "segments" not in block:
                     try:
-                        source = block.get("script") or block.get("source") or ""
+                        # Strict checkpoint manifests may retain the original
+                        # formula source under source_script.  Prefer the
+                        # writer-facing script/source fields, but do not
+                        # mistake source-aware metadata for an empty formula.
+                        source = block.get("script") or block.get("source") or block.get("source_script") or ""
                         if not isinstance(source, str):
                             raise ValueError("formula source must be a string")
                         controls = _formula_control_characters(source)
