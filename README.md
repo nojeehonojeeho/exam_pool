@@ -1,5 +1,13 @@
 # ExamPool
 
+수학 PDF 변환·미주 작업의 최신 계약은
+[원문 충실도 v2 작업지시서](docs/PDF_HWP_SOURCE_FIDELITY_V2_WORK_INSTRUCTIONS.md)와
+[합성 회귀 검증 명세](docs/PDF_HWP_SOURCE_FIDELITY_V2_REGRESSION_SPEC.md)를 우선 확인합니다.
+원본→검수 원장과 검수 원장→실제 writer/readback을 별도 검증하고, 원문 영역 배치와
+기본 편집 서식을 구분하며, 단계별 PASS를 최종 PASS로 승격하지 않습니다.
+**v2는 문서·설계 반영 단계입니다. 실제 제작 진입점 연동·새 회귀 테스트 구현·실제 자료
+제작/검증은 별도 작업이며, 문서 업데이트만으로 자동 적용 완료를 주장하지 않습니다.**
+
 수학 PDF의 OCR·편집형 HWP/HWPX·네이티브 미주 작업은 OCR 전에
 [`docs/MATH_PDF_CONTENT_SCOPE_AND_ENDNOTE_MAPPING.md`](docs/MATH_PDF_CONTENT_SCOPE_AND_ENDNOTE_MAPPING.md)의
 페이지/영역 범위 게이트를 통과해야 합니다. 표지·계획표·개념 영역을 포함한 전체 문서
@@ -66,14 +74,16 @@ run.bat
 는 HWPX `BinData` 전체를 감사하고, 300 dpi로 원본과 결과 PDF를 전 페이지 렌더링해
 overlay/diff를 만든다. 문항·그림 누락/중복, 숫자·수식 토큰 변경, 2% 초과 좌표 이동,
 3% 초과 시각 차이, 페이지/본문 캡처 이미지, 재개방 또는 네이티브 편집성 증거가 없으면
-자동 FAIL한다. 페이지 수와 파일 열림만으로는 PASS할 수 없다.
+자동 검사 대상으로 다룬다. 이 개별 검사 결과가 실제 원문 충실도를 증명하지는 않는다.
+페이지 수와 파일 열림만으로는 PASS할 수 없으며, v2의 원문 대조·작성 필드 보존·
+실제 편집성·출고 해시 근거가 없으면 최종 PASS로 보고하지 않는다.
 
 실행 예시는 다음과 같다(원본·결과·manifest는 로컬에만 둔다).
 
 ```powershell
 python tools/pdf_hwp_strict_qa.py --source source.pdf --generated roundtrip.pdf `
   --hwpx result.hwpx --expected source-manifest.json --actual result-manifest.json `
-  --figures figure-manifest.json --out qa
+  --figures figure-manifest.json --source-manifest reviewed-source-manifest.json --out qa
 ```
 
 전체 작업 절차, HWPX 이미지 감사, 실패 시 중단 조건, 종로 오류 회귀 기준은

@@ -1,5 +1,10 @@
 # PDF → HWP semantic reconstruction baseline
 
+The [source-fidelity v2 work instructions](PDF_HWP_SOURCE_FIDELITY_V2_WORK_INSTRUCTIONS.md)
+supersede conflicting layout, content-preservation and release rules here.
+The v2 update is documentation/design only: verify implementation and wiring in
+the actual production entrypoint before claiming automatic enforcement.
+
 This contract is the small bridge between the reviewed PDF/OCR manifests and
 the HWP writer.  It is intentionally source-independent: real PDF, OCR,
 HWP/HWPX, screenshots, and rendered pages remain local working evidence and
@@ -50,14 +55,17 @@ source blocks and reconstructed blocks plus an empty `omitted_block_ids` list.
 Explanation boxes (for example 출제코드, 해설특강, 핵심개념), answer lines,
 tables, figures, and continuation blocks are content blocks. A missing side box
 is not cosmetic: `SOLUTION_CONTENT_INCOMPLETE` blocks the pre-endnote
-checkpoint until the block is transcribed or the item is removed from scope.
+checkpoint until the block is transcribed and reviewed. Do not remove an item
+from the user's scope to pass QA; a scope change requires the user's direction.
 
 ## Semantic and native object rules
 
 - HWP paragraphs must have `origin: semantic`; direct physical OCR-row
   paragraphs fail with `PHYSICAL_OCR_ROW_SPLIT`.
 - Sentence units are complete reviewed sentences.  Fragments fail with
-  `SENTENCE_FRAGMENTATION`.
+  `SENTENCE_FRAGMENTATION`. Normal automatic line wrapping is not a split
+  sentence. Reconstruction must not summarize, invent choices, remove source
+  fill-in proofs or fill their answer blanks.
 - When the source item has choices, they are the exact reviewed count of ordered
   native choice objects in the reviewed layout; an open-response item declares
   `expected_choice_count: 0` and does not invent choices.
@@ -66,15 +74,23 @@ checkpoint until the block is transcribed or the item is removed from scope.
 - Only a tight-cropped pure figure may remain an image.  Page, question,
   solution-body, screenshot, and text-bearing captures are forbidden.  Each
   figure has exactly one owning `item_id`.
-- Body text uses 함초롬돋움 11 pt and 160% line spacing.  Paragraph spacing is
+- When the default editable reflow profile is selected, body text uses
+  함초롬돋움 11 pt and 160% line spacing. Paragraph spacing is
   native margins (0 pt before, 2 pt after); blank-line spacing is forbidden.
-  Body paragraphs default to left alignment, as in the accepted reflow pilot.
-  A user-requested alternative alignment must not stretch short/final lines.
+  Alignment must come from the selected, identified profile rather than an
+  unverified historical pilot. Source-region layout takes precedence over
+  generic page/column settings when requested. An alternative alignment must
+  not stretch short/final lines. Record source measurements separately from
+  chosen editable fonts and inspect effective run/paragraph properties.
 - Equations are editable `eqed` objects using `HYhwpEQ`, 11 pt, and HWPX
   `baseUnit=1100`, with a non-empty script.  The reviewed source count,
-  HWPX, HWP, COM, and rendered-PDF equation counts must form one chain.
-  Scripts use Hancom equation grammar only: raw LaTeX commands, `!=`, and
-  unbalanced braces/parentheses fail before HWP generation.  Subscripts,
+  MathIR roots, writer occurrences, HWPX, HWP and reopened COM controls must
+  form one count/owner/order chain. Compare rendered PDF regions visually;
+  PDF does not expose native eqed controls. Compiled scripts use Hancom
+  equation grammar only: raw LaTeX commands, ambiguous literal `!=`, and
+  unbalanced braces/parentheses fail before HWP generation. Distinguish
+  Factorial+Equal from a genuine NotEqual in the source AST; never fix the
+  ambiguity with a global replacement. Subscripts,
   superscripts, sigma/product/limit bounds, fractions, roots, piecewise
   conditions, matrices, and vector symbols must remain structured native
   equation content rather than plain text.
@@ -121,6 +137,21 @@ every COM equation's script, order, and BaseUnit with the compiled ledger.
 Count equality alone is insufficient. Native readback still does not prove
 visible layout: render and inspect matrices/cases column spacing, invisible
 delimiters, accents, bounds and nested structures before release.
+
+The v2 field-consumption contract also requires a closed content schema and a
+ledger from source JSON pointers through normalized blocks and actual writer
+events to saved/readback objects. An existing preflight's rejection of some
+ignored fields is not proof of complete field consumption. Do not silently
+choose only `text`, `components` or `segments` while losing nested conditions,
+questions, tables or choices. Unknown content fields fail; metadata has an
+explicit namespace. Preserve source reading order and trace one-to-many inline
+run mappings without introducing artificial paragraph breaks.
+
+These requirements must be wired into the real runner, including external work
+scripts. Library tests alone do not validate a builder that bypasses them.
+Bind source/scope/manifest/profile/code/output hashes to the release evidence;
+changed dependencies invalidate affected downstream checks. A visual golden
+file consisting of page images cannot serve as an editable golden file.
 
 Keep `build_status`, syntax/asset audit status, source-fidelity status and final
 release status distinct. A generated document is `REVIEW_REQUIRED` while

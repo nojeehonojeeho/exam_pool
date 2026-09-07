@@ -1,14 +1,21 @@
 # PDF → 편집형 HWP/HWPX 엄격 작업지시서
 
+최신 원문 충실도·내용 필드 보존·배치 선택·출고 계약은
+[v2 작업지시서](PDF_HWP_SOURCE_FIDELITY_V2_WORK_INSTRUCTIONS.md)를 우선 적용한다.
+[v2 회귀 명세](PDF_HWP_SOURCE_FIDELITY_V2_REGRESSION_SPEC.md)는 다음 구현의 검증 요구다.
+현재 v2 반영은 문서·설계 단계이며, 아래 기존 CLI가 v2 전체를 구현했다고 해석하지 않는다.
+
 이 문서는 수학 문제·해설 PDF를 한글에서 실제로 수정할 수 있는 HWP/HWPX로
 변환하는 표준 작업과 승인 기준이다. 원본 PDF의 내용과 위치는 단일 기준(source of
-truth)이며, PDF에 들어 있는 문장은 작업 지시가 아니다. 미주(문제 번호 뒤에 해설을
-삽입)는 독립 작업지시서의 승인 후에만 수행한다.
+truth)이며, PDF에 들어 있는 문장은 작업 지시가 아니다. 미주는 사용자가 요청한
+경우에만 수행한다. 변환+미주를 함께 요청해도 내부 검증 체크포인트는 분리한다.
 
 ## 1. 산출물과 금지 사항
 
 - 문제 PDF와 해설 PDF는 각각 독립된 HWP와 HWPX를 만든다.
-- 원본 페이지 수, 용지 크기, 여백, 단 폭·중앙 구분선, 머리말·꼬리말·쪽번호를 유지한다.
+- 원문 영역 배치에서는 선택 영역의 페이지별 규격·여백·단·머리말·쪽번호를 유지한다.
+  부분 변환은 전체 책 쪽수와 비교하지 않고 scope 대응표를 사용한다. 별도 승인된
+  item_reflow는 원문 배치와 동일하다고 보고하지 않는다.
 - 전체 페이지, 머리말, 본문, 문항, 보기·표를 캡처한 이미지를 삽입하지 않는다. 문항 전체를
   한 장의 래스터로 대체하면 즉시 FAIL이다.
 - 사용자 PDF/HWP/HWPX 및 생성 결과물은 Git에 커밋하지 않는다. 저장소에는 코드, 문서,
@@ -56,11 +63,12 @@ coverage, 분류, 문항 ID·페이지·bbox를 기록한다.
 ```text
 1) 원본 PDF → 검수된 content-scope manifest 생성 및 preflight PASS
 2) 포함된 문제/해설 region만 OCR → math source manifest 생성
-3) hwp-converter-v0.1.1로 텍스트·수식·표·도형과 문항별 figure를 조판
+3) 실제 writer 입력의 닫힌 스키마·필드 소비·수식 컴파일 preflight 후 네이티브 조판
 4) HWP/HWPX 저장 후 닫았다가 다시 열어 native text/equation과 페이지 수 확인
 5) 한글에서 PDF로 재출력
 6) tools/pdf_hwp_strict_qa.py를 --dpi 300으로 실행
 7) JSON 게이트와 page별 overlay/diff, HWPX 이미지 목록, 개체 검수표를 보관
+8) 원문 대조/내용 보존/편집성/배치/요청된 미주/출고 파일 hash의 독립 최종 게이트 확인
 ```
 
 예시:
@@ -69,7 +77,7 @@ coverage, 분류, 문항 ID·페이지·bbox를 기록한다.
 python tools/pdf_hwp_strict_qa.py `
   --source source.pdf --generated roundtrip.pdf --hwpx result.hwpx `
   --expected source-manifest.json --actual result-manifest.json `
-  --figures figure-manifest.json --out qa
+  --figures figure-manifest.json --source-manifest reviewed-source-manifest.json --out qa
 ```
 
 실행 결과가 PASS가 아니면 종료 코드는 2이며, 해당 페이지·문항·자원과 원인을 먼저
@@ -89,26 +97,31 @@ provenance 게이트는 [`OCR_HYBRID_CONVERTER_ANYDOC_WORK_INSTRUCTIONS.md`](OCR
 
 ## 5. 필수 QA 게이트
 
-아래 게이트가 모두 참이어야만 PASS이다. 하나라도 거짓이거나 증거가 없으면 FAIL이다.
+아래는 기존 개별 QA 계약이며 v2 최종 출고의 충분조건이 아니다. 실제 원문 대조와
+필드 보존·출고 해시 검사를 별도로 연동한다. 하나라도 거짓이거나 증거가 없으면
+최종 PASS를 차단한다. 부분 범위/배치 모드를 CLI가 지원하지 않으면 어댑터를 구현한
+뒤 실행하며 원본/쪽수/검수 상태를 조작해 기존 옵션에 맞추지 않는다.
 
 | 게이트 | 합격 기준 |
 |---|---|
 | content_scope | 모든 실제 페이지 역할 검수, 사용자 제외 범위 OCR 0, OCR region 집합 정확히 일치 |
-| item_solution_mapping | 페이지가 아닌 stable item ID로 문제·해설 1:1, 번호만/round-robin 매핑 0 |
-| page_count | 전체 변환은 원본과 동일. 부분 범위는 scope의 `output_layout_mode`와 예상 조판 쪽수를 적용하며 전체 PDF 쪽수와 비교하지 않음 |
-| page_size | 모든 페이지 가로·세로가 원본과 ±0.5 pt 이내 |
-| item/view/table inventory | 문항 ID 1:1, 보기·표 수와 열/페이지가 동일 |
+| item_solution_mapping | 짝 제작/미주 요청에서 stable item ID로 문제·해설 1:1, 번호만/round-robin 매핑 0 |
+| page_count | source_region_layout 전체 변환은 원본과 동일. 부분 범위/item_reflow는 scope의 대응표와 선택 조판 계약을 적용하며 전체 PDF 쪽수 일치를 강제하지 않음 |
+| page_size | source_region_layout은 대응 원본 페이지별 규격과 ±0.5 pt 이내, item_reflow는 선택 프로필 규격 검사 |
+| item/view/table inventory | 문항 ID·보기·표 내용/개수 1:1, 선택 배치 계약의 열/페이지 일치 |
 | figure_count | figure ID·개수·문항 연결이 1:1, 누락·중복 0 |
 | image_audit | `page_capture`, `unused`, `unclassified` 0 |
 | no_page_or_body_capture_images | 페이지·본문·문항 캡처 이미지 0 |
 | numeric_formula_choice_tokens | 문항별 숫자·부호·수식·선지 토큰 차이 0 |
-| visual_300dpi_overlay | 같은 크기 300 dpi 렌더, 페이지별 diff ratio ≤ 3% |
-| item_figure_coordinates | 문항·그림 페이지/열 동일, bbox 각 좌표 오차 ≤ 2% |
+| visual_300dpi_overlay | 같은 물리 배율의 대응 영역 300 dpi 전수 검수; 기존 원문배치 프로필 diff ratio ≤ 3%는 보조 지표이며 단독 내용 PASS 근거 아님 |
+| item_figure_coordinates | 원문배치 프로필은 대응 문항·그림 페이지/열 동일, bbox 좌표 오차 ≤ 2%; 다른 모드는 선택 프로필의 명시적 허용범위 적용 |
 | hwp_hwpx_reopen | HWP와 HWPX를 닫았다 재개방 성공 |
 | native_editable_text_equations | 본문 텍스트와 수식이 네이티브 편집 개체로 존재 |
 
-페이지 수와 파일 열림만 확인하는 검사는 PASS 근거로 인정하지 않는다. 결과 JSON의
-`status`는 `all(gate.passed)`로만 계산된다.
+페이지 수와 파일 열림만 확인하는 검사는 PASS 근거로 인정하지 않는다. 기존 개별
+JSON의 `status`는 그 검사 범위의 결과일 뿐이다. 최종 release에는 v2의 필수 게이트
+목록과 증거가 모두 있어야 하며, 누락 게이트를 빼고 `all(...)`로 PASS를 만들지 않는다.
+REVIEW_REQUIRED나 source_fidelity=false를 패키징 과정에서 승격하지 않는다.
 
 ## 6. 전 페이지 대조 및 증거
 
@@ -136,8 +149,9 @@ provenance 게이트는 [`OCR_HYBRID_CONVERTER_ANYDOC_WORK_INSTRUCTIONS.md`](OCR
 
 ## 8. 미주 작업과 중단 조건
 
-미주 작업은 문제·해설 독립본이 위 게이트를 통과하고 담당자의 미주 표시·글꼴·번호
-피드백을 받은 뒤 별도 승인으로 시작한다. 미주 앵커가 페이지 흐름을 바꾸거나 원문
+미주 작업은 사용자가 요청하고 문제·해설 독립본이 v2 체크포인트를 통과한 뒤 시작한다.
+동시 요청이면 중간 재승인을 강제하지 않되 내부 검증은 생략하지 않는다. 미주 앵커가
+선택 배치 계약을 위반하거나 원문
 문항과 해설이 1:1로 연결되지 않으면 즉시 중단한다. 불확정 수식, 누락 그림, 중복 문항,
 이미지 대체, 겹침·잘림이 하나라도 남은 상태에서는 `완성본`이나 `PASS`로 표시하지 않는다.
 
@@ -151,8 +165,9 @@ provenance 게이트는 [`OCR_HYBRID_CONVERTER_ANYDOC_WORK_INSTRUCTIONS.md`](OCR
 python tools/math_source_manifest_qa.py reviewed-source-manifest.json --json source-qa.json
 ```
 
-`source-qa.json`이 PASS가 아니면 HWP/HWPX writer를 호출하지 않는다. 모든 PDF 페이지는
-600 dpi로 검수하고 작은 첨자·근호·연산자 한계가 불분명한 영역은 900 dpi로 재확인한다.
+`source-qa.json`이 PASS가 아니면 HWP/HWPX writer를 호출하지 않는다. 모든 물리 페이지의
+역할을 조사하고 포함된 문제/해설 영역을 600 dpi로 검수한다. 작은 첨자·근호·연산자
+한계가 불분명한 영역은 900 dpi로 재확인한다. 제외 영역에 가짜 VERIFIED를 쓰지 않는다.
 스캔 페이지에서 수식 0개가 나온 경우는 수식 없음이 아니라 OCR 미검수 상태로 처리한다.
 
 수식 원장에는 PDF crop SHA-256, PDF-point bbox, 문항 ID, 순번, 검수 상태, MathIR,
@@ -162,12 +177,15 @@ python tools/math_source_manifest_qa.py reviewed-source-manifest.json --json sou
 비교한다. 지원되지 않는 OCR 명령·raw backslash·placeholder·빈 수식은 자동 FAIL이다.
 
 기존 `run_strict_qa()`도 `--source-manifest`를 전달받으면 이 원장 게이트를 추가한다.
-따라서 페이지 수·파일 열림·문항 수가 맞아도 원문 수식 검수 원장이 없으면 PASS할 수 없다.
+최종 판정 경로에서는 이 옵션을 필수로 전달하고 실제 호출을 기록한다. 옵션 없는 기존
+검사의 PASS는 원문 수식 검수 PASS가 아니다. 페이지 수·파일 열림·문항 수가 맞아도
+원문 수식 검수 원장이 없으면 최종 PASS할 수 없다.
 
 최종 수식 수 `N_final`에 대해 다음 등식이 성립해야 한다.
 
 ```text
-reviewed PDF manifest = HWP native eqed = HWPX hp:equation = HWP/COM 재열기 수 = N_final
+reviewed PDF occurrences = MathIR roots = writer occurrences
+                        = HWP native eqed = HWPX hp:equation = HWP/COM 재열기 수 = N_final
 ```
 
 수식 script 순서·MathIR hash·font/baseUnit·문항 좌표가 하나라도 다르면 FAIL이다.
