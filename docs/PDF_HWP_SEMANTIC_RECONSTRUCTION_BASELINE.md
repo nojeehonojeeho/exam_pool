@@ -109,6 +109,11 @@ text, untyped mathematical cells, embedded OCR hard line breaks, description
 figures, changed/missing assets, and content fields ignored by a text wrapper.
 Check completeness metadata against the actual block lists; equal declared
 counts alone do not prove that all source sentences or formulas are present.
+It also rejects `FORMULA_OPERATOR_TOKENIZATION`: a tokenizer/OCR pass that has
+split a command such as `\sqrt`, `\pi`, `\lim`, `\sum`, or `\int` into spaced
+letters (`s q r t`, `p i`, etc.) is semantic formula damage even when the
+resulting atom sequence happens to compile.  Such a block must be corrected
+from the reviewed 600/900-dpi source before any HWP is generated.
 
 `app/hwp_native_equation_writer.py` inserts the compiled script exactly once,
 without a second lossy converter. Reopen both HWPX and binary HWP and compare

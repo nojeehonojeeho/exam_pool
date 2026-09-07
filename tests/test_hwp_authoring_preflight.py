@@ -35,6 +35,14 @@ def test_python_escape_control_character_in_formula_source_fails_closed(tmp_path
     assert "FORMULA_CONTROL_CHARACTER" in codes(value, tmp_path)
 
 
+def test_split_latex_operator_is_not_accepted_as_atoms(tmp_path):
+    value = item()
+    value["problem_blocks"][0]["script"] = "8 s q r t ( 3 ) + p i"
+    assert "FORMULA_OPERATOR_TOKENIZATION" in codes(value, tmp_path)
+    value["problem_blocks"][0]["script"] = r"8\sqrt{3}+\pi"
+    assert "FORMULA_OPERATOR_TOKENIZATION" not in codes(value, tmp_path)
+
+
 def test_missing_dialect_or_math_in_native_text_fails(tmp_path):
     value = item()
     value["problem_blocks"][0].pop("script_language")

@@ -20,6 +20,17 @@ EQUATION_KINDS = {"equation", "inline_equation", "display_equation"}
 FORBIDDEN_FIGURE_SUBSTITUTES = {"figure_reference", "diagram", "figure_bundle", "figure_axis_labels", "figure_region_without_standalone_figure"}
 PURE_FIGURE_ROLES = {"pure_graph", "pure_geometry", "pure_illustration", "pure_adjacency_illustration"}
 _TEXT_MATH = re.compile(r"\\[A-Za-z]+|[\^_]|\b(?:sqrt|over|cases|matrix)\b|(?:[A-Za-z][0-9]?\s*[=<>≤≥]|[∑∫√])")
+# OCR/tokenizers sometimes split a LaTeX operator into separate letters
+# (``s q r t``/``p i``/``l i m``).  The equation compiler quite correctly
+# treats those as ordinary atoms, so syntax compilation alone cannot catch the
+# semantic loss.  Keep this list deliberately narrow: it only rejects a
+# complete known operator made solely of whitespace-separated letters.
+_SPLIT_LATEX_OPERATOR = re.compile(
+    r"(?<![A-Za-z])(?:s\s+q\s+r\s+t|p\s+i|l\s+i\s+m|s\s+u\s+m|p\s+r\s+o\s+d|"
+    r"i\s+n\s+t|s\s+i\s+n|c\s+o\s+s|t\s+a\s+n|c\s+o\s+t|f\s+r\s+a\s+c|"
+    r"d\s+f\s+r\s+a\s+c)(?![A-Za-z])",
+    re.IGNORECASE,
+)
 
 
 def _formula_control_characters(value: str) -> list[str]:
@@ -92,6 +103,14 @@ def audit_authoring_items(items: list[dict[str, Any]], *, asset_root: str | Path
                         controls = _formula_control_characters(source)
                         if controls:
                             findings.append({**context, "code": "FORMULA_CONTROL_CHARACTER", "detail": controls})
+                            continue
+                        split_operator = _SPLIT_LATEX_OPERATOR.search(source)
+                        if split_operator:
+                            findings.append({
+                                **context,
+                                "code": "FORMULA_OPERATOR_TOKENIZATION",
+                                "detail": split_operator.group(0),
+                            })
                             continue
                         result = compile_equation(source, dialect=block.get("script_language", ""), operator_policies=block.get("operator_policies"))
                         equations.append({**context, **result.to_dict()})
