@@ -344,3 +344,29 @@ document_role | item_id | stage | evidence_key | source_hash
 source PDF, scope, manifest, crop, compiler, writer 또는 code hash가 바뀌면 관련 closure와
 과거 QA를 자동 무효화하고 큐에 되돌린다. 하위 finding status를 수동으로 CLOSED로 바꾸거나
 상위 원인 메모만으로 일괄 종료하는 것은 금지한다.
+
+### 12.4 수식 provenance gate와 writer 진입 차단
+
+`audit_authoring_items`의 PASS는 writer 입력의 문법·자산 무결성만 의미하며 원본
+충실도를 증명하지 않는다. 실제 production runner는 writer/COM 호출 전에
+`app/pdf_hwp_formula_provenance_gate.py`의
+`audit_formula_provenance(..., require_source_evidence=True)`를 반드시 실행한다.
+다음 필드가 수식 occurrence별로 완료되지 않으면
+`FORMULA_SOURCE_EVIDENCE_MISSING`, `FORMULA_SOURCE_BBOX_MISSING`, `MATHIR_MISSING`,
+`MATHIR_SOURCE_HASH_MISMATCH`, `DIALECT_REQUIRED` 등의 raw finding을 기록하고 build를
+`BLOCKED`로 끝낸다.
+
+```text
+source_pdf_verified=true
+→ formula_occurrence_id + item_id + source_order
+→ source page + positive bbox + 600/900dpi crop SHA-256 + source PDF SHA-256
+→ source_text_sha256
+→ non-empty MathIR with mathir.source_sha256 == source_text_sha256
+→ non-empty writer script + script_language/HWP dialect
+```
+
+수식 개수, `review_status=VERIFIED`, HWPX XML 정상, HWP 재열림만으로는 이 게이트를
+우회할 수 없다. flat `formula_occurrences` ledger와 typed `problem_blocks`/
+`solution_blocks`를 모두 검사하며, occurrence ID 중복·소유 문항 누락·순서 누락도
+독립 finding으로 남긴다. 완전한 source provenance가 없는 기존 checkpoint는
+`candidate_only`/`evidence_open`으로만 재사용하고 전체본 PASS로 승격하지 않는다.

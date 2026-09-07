@@ -120,6 +120,20 @@
 | RC17 | root-cause 키가 실행마다 달라짐 | `document_role|item_id|stage|evidence_key|source_hash` 정규화 키로 결정적으로 재생성 |
 | RC18 | source/manifest/crop/compiler/writer/code hash 변경 후 이전 closure 재사용 | 관련 closure와 이전 QA를 무효화하고 해당 문항을 evidence-open 큐에 재투입 |
 | RC19 | 문제 번호순 단일 큐로 복잡 문항 처리 | source page/region·단원·문서 역할·formula root cause·특수 블록별 배치 큐를 생성하고 각 항목을 `release_eligible=false`로 시작 |
+| RC20 | writer syntax PASS를 source fidelity PASS로 오인 | strict runner가 per-formula provenance gate를 writer/COM 전에 실행하고 source evidence·MathIR·dialect 누락 시 BLOCKED |
+| RC21 | formula count가 같다는 이유로 원본 수식 연쇄를 생략 | occurrence ID·소유 문항·순서·600/900dpi crop/bbox·MathIR hash·dialect script를 1:1로 검사 |
+| RC22 | item-level source evidence를 모든 수식의 증거로 재사용 | typed formula block 또는 flat occurrence ledger에 formula-level evidence를 요구하고 item-level metadata만으로는 PASS 금지 |
+
+### 수식 provenance gate 합성 회귀
+
+`tests/test_pdf_hwp_formula_provenance_gate.py`는 다음을 고정한다.
+
+| 케이스 | 기대 결과 |
+|---|---|
+| script만 있고 source evidence/MathIR 없는 수식 | `FORMULA_OCCURRENCE_ID_MISSING`, `FORMULA_SOURCE_EVIDENCE_MISSING`, `MATHIR_MISSING`으로 FAIL |
+| page+bbox+600/900dpi crop hash+source PDF hash+MathIR hash+dialect가 모두 일치 | 해당 수식 provenance PASS |
+| MathIR source hash 또는 crop hash 변조 | 각 gate의 독립 FAIL 유지 |
+| 동일 occurrence ID를 두 블록이 공유 | `FORMULA_OCCURRENCE_ID_DUPLICATE`로 FAIL; raw findings 삭제 금지 |
 
 실행 산출물에는 `strict-findings.jsonl`, `root-cause-summary.json`,
 `evidence-closure-summary.json`, `formula-occurrence-ledger.jsonl`,
