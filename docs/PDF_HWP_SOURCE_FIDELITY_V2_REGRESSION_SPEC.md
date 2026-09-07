@@ -123,6 +123,9 @@
 | RC20 | writer syntax PASS를 source fidelity PASS로 오인 | strict runner가 per-formula provenance gate를 writer/COM 전에 실행하고 source evidence·MathIR·dialect 누락 시 BLOCKED |
 | RC21 | formula count가 같다는 이유로 원본 수식 연쇄를 생략 | occurrence ID·소유 문항·순서·600/900dpi crop/bbox·MathIR hash·dialect script를 1:1로 검사 |
 | RC22 | item-level source evidence를 모든 수식의 증거로 재사용 | typed formula block 또는 flat occurrence ledger에 formula-level evidence를 요구하고 item-level metadata만으로는 PASS 금지 |
+| RC23 | source/authoring 수식 occurrence를 fuzzy·페이지 근접으로 연결 | `pdf_hwp_formula_closure`는 명시적 ID exact match를 우선하고, 양쪽 ID가 없을 때만 유일한 item/order/source-hash composite match 허용 |
+| RC24 | source ID와 다른 authoring ID를 composite key로 우회 | `FORMULA_AUTHORING_OCCURRENCE_ID_MISMATCH`와 link missing을 함께 기록하고 `REVIEW_REQUIRED` 유지 |
+| RC25 | closure ledger의 item-level crop을 formula-level 증거로 상속 | 수식별 bbox/crop SHA-256/DPI가 직접 없으면 source review open으로 유지 |
 
 ### 수식 provenance gate 합성 회귀
 
@@ -134,6 +137,18 @@
 | page+bbox+600/900dpi crop hash+source PDF hash+MathIR hash+dialect가 모두 일치 | 해당 수식 provenance PASS |
 | MathIR source hash 또는 crop hash 변조 | 각 gate의 독립 FAIL 유지 |
 | 동일 occurrence ID를 두 블록이 공유 | `FORMULA_OCCURRENCE_ID_DUPLICATE`로 FAIL; raw findings 삭제 금지 |
+
+### 수식 closure 합성 회귀
+
+`tests/test_pdf_hwp_formula_closure.py`는 다음을 고정한다.
+
+| 케이스 | 기대 결과 |
+|---|---|
+| 명시적 source/authoring occurrence ID가 동일하고 provenance가 완비됨 | `PASS`, `closure_status=CLOSED` |
+| 양쪽 occurrence ID가 없고 유일한 item/order/source-hash만 일치 | `exact_composite_key`로 연결하되 다른 gate는 별도 통과 필요 |
+| source ID가 있는데 authoring ID가 다른 경우 | `FORMULA_AUTHORING_OCCURRENCE_ID_MISMATCH` + `FORMULA_AUTHORING_LINK_MISSING`, `REVIEW_REQUIRED` |
+| authoring MathIR 또는 dialect가 없음 | `FORMULA_AUTHORING_MATHIR_MISSING` 또는 `FORMULA_AUTHORING_DIALECT_MISSING`, `candidate_only=true` |
+| item-level evidence에만 bbox/crop이 있고 formula record에는 없음 | formula geometry를 닫지 않고 `FORMULA_SOURCE_REVIEW_OPEN` |
 
 실행 산출물에는 `strict-findings.jsonl`, `root-cause-summary.json`,
 `evidence-closure-summary.json`, `formula-occurrence-ledger.jsonl`,

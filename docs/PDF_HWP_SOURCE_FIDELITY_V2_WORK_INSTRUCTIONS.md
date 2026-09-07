@@ -370,3 +370,28 @@ source_pdf_verified=true
 `solution_blocks`를 모두 검사하며, occurrence ID 중복·소유 문항 누락·순서 누락도
 독립 finding으로 남긴다. 완전한 source provenance가 없는 기존 checkpoint는
 `candidate_only`/`evidence_open`으로만 재사용하고 전체본 PASS로 승격하지 않는다.
+
+### 12.5 검수 원장과 작성 원장의 수식 closure
+
+source 검수 원장과 writer 입력 원장은 별도로 보존하고, writer가 만든 수식이
+어떤 원본 occurrence인지 자동 추정하여 닫지 않는다. `app/pdf_hwp_formula_closure.py`
+의 closure 단계는 다음 순서만 허용한다.
+
+1. source 쪽에 명시적 `formula_occurrence_id`가 있으면 작성 쪽의 **같은 명시적 ID**와
+   정확히 일치해야 한다.
+2. source 쪽 ID가 없고 양쪽에 `item_id`, `source_order`, `source_text_sha256`가 모두
+   있으며 그 조합이 유일할 때만 `exact_composite_key`를 허용한다.
+3. source 쪽에는 명시적 ID가 있지만 작성 쪽 ID가 다른 경우에는 composite key로
+   우회하지 않는다. `FORMULA_AUTHORING_OCCURRENCE_ID_MISMATCH`와 연결 누락을
+   기록하고 `REVIEW_REQUIRED`로 둔다.
+4. fuzzy text similarity, 페이지 근접성, 리스트 순번, `VERIFIED` 라벨만으로는
+   연결·종료·PASS를 만들지 않는다.
+5. item-level crop/page evidence를 개별 수식의 bbox/crop 증거로 상속하지 않는다.
+   수식별 bbox, crop SHA-256, DPI는 해당 occurrence record에 직접 있어야 한다.
+
+closure 결과는 `formula-occurrence-ledger.jsonl`과
+`evidence-closure-summary.json`에 `match_method`, `closure_status`,
+`candidate_only`, `evidence_open_item_count`를 기록한다. 하나라도 미연결·중복·ID
+충돌·MathIR hash 불일치·dialect 누락이면 전체 writer 진입과 최종 PASS를 차단하며,
+raw finding 원장은 삭제하지 않는다. closure가 PASS가 되더라도 이후 HWPX 저장,
+COM 재열림, 문제-해설 미주 연결, 레이아웃 게이트를 별도로 통과해야 한다.
