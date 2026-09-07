@@ -114,3 +114,14 @@
 | RC11 | checkpoint status가 `CHECKPOINT_VERIFIED_NOT_BOOK_FINAL` | `candidate_only=true`, `evidence_closed_item_count` 불변, release PASS 금지 |
 | RC12 | checkpoint manifest hash·600/900dpi·작성기 수식 수·ZIP 무결성 중 하나가 누락/변경 | 해당 checkpoint를 재사용 후보에서 제외하고 원인 목록을 보존 |
 | RC13 | candidate-only 원장을 부모 전체 원장에 연결 | 최신 v2 strict 재실행 전에는 evidence-open 감소·raw finding 삭제·PASS 승격 금지 |
+| RC14 | 과거 검토 범위가 80개이고 전체 범위가 371개 | `legacy_reviewed_scope_count=80`은 참고값일 뿐이며 최신 v2 재검증 결과로 `evidence_closed_item_count`·`evidence_open_item_count`를 다시 계산 |
+| RC15 | “291개 미검수”를 고정값으로 보고 | 291을 코드·보고서에 하드코딩하지 않고 매 실행 실제 `evidence_open_item_count`를 산출 |
+| RC16 | raw finding·root cause·blocking item·release blocker를 혼동 | 네 필드를 각각 기록하고 root-cause 감소만으로 PASS하지 않음 |
+| RC17 | root-cause 키가 실행마다 달라짐 | `document_role|item_id|stage|evidence_key|source_hash` 정규화 키로 결정적으로 재생성 |
+| RC18 | source/manifest/crop/compiler/writer/code hash 변경 후 이전 closure 재사용 | 관련 closure와 이전 QA를 무효화하고 해당 문항을 evidence-open 큐에 재투입 |
+| RC19 | 문제 번호순 단일 큐로 복잡 문항 처리 | source page/region·단원·문서 역할·formula root cause·특수 블록별 배치 큐를 생성하고 각 항목을 `release_eligible=false`로 시작 |
+
+실행 산출물에는 `strict-findings.jsonl`, `root-cause-summary.json`,
+`evidence-closure-summary.json`, `formula-occurrence-ledger.jsonl`,
+`problem-solution-linkage.json`, `work-queue.json`, `build-and-qa.json`,
+`EXECUTION_STATUS.md`가 있어야 하며, 각 산출물은 입력·manifest·코드 hash를 기록한다.

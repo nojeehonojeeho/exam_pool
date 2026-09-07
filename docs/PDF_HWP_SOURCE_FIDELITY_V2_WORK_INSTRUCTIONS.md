@@ -294,3 +294,53 @@ builder를 실행할 때는 `--source-pdf <원본 PDF>`를 전달해 첫 페이�
 측정하고, 결과 manifest에 `source_geometry.status=MEASURED`, PDF SHA-256 및 pt/mm 값을
 남긴다. source PDF가 없으면 해당 산출물은 기하 증거가 없는 legacy 후보로만 보존하며
 최종 PASS를 금지한다.
+
+### 12.3 진행률 필드와 evidence-open 작업 큐의 엄격한 의미
+
+실행 보고서는 다음 필드를 모두 함께 기록한다.
+
+```text
+scope_item_count
+inventory_item_count
+reconstructed_item_count
+legacy_reviewed_scope_count
+evidence_closed_item_count
+evidence_open_item_count
+formula_bearing_item_count
+source_formula_occurrence_count
+mathir_occurrence_count
+writer_formula_occurrence_count
+saved_hwpx_equation_count
+reopened_equation_count
+raw_finding_count
+unique_root_cause_count
+blocking_item_count
+release_blocker_count
+```
+
+`legacy_reviewed_scope_count`는 과거에 상세 검토된 범위일 뿐 `evidence_closed_item_count`가
+아니다. 과거 검토 문항은 최신 v2로 재검증하여 실제 증거가 닫힌 경우에만 closed로 집계한다.
+따라서 예를 들어 “전체 371, 과거 검토 80, 나머지 291”이라는 설명은 작업 큐를 시작하는
+참고값일 뿐이며, 80개 재검증 결과에 따라 `evidence_open_item_count`를 매 실행 실제값으로
+다시 계산한다. 291을 코드나 보고서에 고정해 evidence-open으로 대체하지 않는다.
+
+`raw_finding_count`는 모든 세부 finding 수이고 `unique_root_cause_count`는 결정적 후보
+집계 수이다. `blocking_item_count`는 하나 이상의 미해결 finding이 있는 문항 수이며,
+`release_blocker_count`는 최종 출고를 막는 미해결 finding 수이다. root-cause 수가 줄어도
+raw finding 또는 release blocker가 남아 있으면 PASS가 아니다.
+
+evidence-open 작업 큐는 문항 번호만으로 정렬하지 않고 원본 페이지·단원·문서 역할·수식
+root cause·특수 블록 유형으로 묶는다. 각 큐 항목에는 최소 source page/region, formula
+occurrence IDs, 필요한 600/900dpi crop, 문제-해설 대응, 다음 게이트와 `release_eligible=false`
+를 기록한다. checkpoint 후보는 `candidate_only=true`로 보존하며, 부모 전체 원장의
+evidence-open 수·raw finding 수·release blocker 수를 줄이지 않는다.
+
+각 root cause 후보의 키는 다음 구성요소를 정규화한 값으로 결정적으로 생성한다.
+
+```text
+document_role | item_id | stage | evidence_key | source_hash
+```
+
+source PDF, scope, manifest, crop, compiler, writer 또는 code hash가 바뀌면 관련 closure와
+과거 QA를 자동 무효화하고 큐에 되돌린다. 하위 finding status를 수동으로 CLOSED로 바꾸거나
+상위 원인 메모만으로 일괄 종료하는 것은 금지한다.
