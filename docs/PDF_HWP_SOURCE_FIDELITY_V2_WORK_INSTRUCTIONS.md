@@ -288,3 +288,9 @@ checkpoint의 `CHECKPOINT_VERIFIED_NOT_BOOK_FINAL` 상태는 최종 evidence-clo
 문항 작업은 번호 순서만이 아니라 원본 페이지·단원·수식 root cause·특수 블록 유형별
 큐로 묶는다. 일반 문항은 600dpi, 첨자·부등호·분수선·근호 끝·조합 표기·도형 라벨은
 900dpi crop을 추가한다.
+
+고정된 B4 용지를 source-fidelity 결과의 기본값으로 사용하지 않는다. 고등학교 교재
+builder를 실행할 때는 `--source-pdf <원본 PDF>`를 전달해 첫 페이지 MediaBox(폭·높이·회전)를
+측정하고, 결과 manifest에 `source_geometry.status=MEASURED`, PDF SHA-256 및 pt/mm 값을
+남긴다. source PDF가 없으면 해당 산출물은 기하 증거가 없는 legacy 후보로만 보존하며
+최종 PASS를 금지한다.
