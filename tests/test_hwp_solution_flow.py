@@ -31,3 +31,14 @@ def test_string_false_is_not_a_valid_flow_flag():
     from app.pdf_hwp_source_fidelity_v2 import normalize_content_blocks
     _, _, findings = normalize_content_blocks([{"type": "text", "text": "합성", "keep_with_next": "false"}])
     assert any(f["code"] == "AUTHORING_FLOW_FLAG_INVALID" for f in findings)
+
+def test_prose_supplement_before_formula_remains_with_its_explanation():
+    blocks=[{"type":"text","text":"설명"},{"type":"text","role":"supplement","text":"주석"},
+            {"type":"display_equation","script":"a=b"}]
+    result=bind_solution_flow(blocks)
+    assert result[0]["keep_with_next"] is True
+    assert result[1]["keep_with_next"] is True
+
+def test_explicit_case_heading_is_not_left_at_page_bottom():
+    result=bind_solution_flow([{"type":"text","role":"case_heading","text":"(i) 조건"},{"type":"text","text":"설명"}])
+    assert result[0]["keep_with_next"] is True

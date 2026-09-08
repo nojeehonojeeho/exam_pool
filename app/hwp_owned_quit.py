@@ -11,7 +11,11 @@ def quit_owned(hwp, *, expected_pid, pid_for_window, pause=time.sleep):
         hwp.quit(save=False)
         return {"normal_quit": True, "recovered_busy": False}
     except Exception as exc:
-        if getattr(exc, "hresult", None) not in (-2147417846, -2147418111):
+        initial_hresult=getattr(exc,"hresult",None)
+        codes={getattr(exc,"hresult",None)}
+        info=getattr(exc,"excepinfo",None)
+        if isinstance(info,tuple) and len(info)>5:codes.add(info[5])
+        if not codes.intersection((-2147417846, -2147418111, -2147417851)):
             raise
     pause(0.5)
     raw=hwp.hwp
@@ -23,4 +27,5 @@ def quit_owned(hwp, *, expected_pid, pid_for_window, pause=time.sleep):
     if not paths or any(paths):
         raise RuntimeError("OWNED_QUIT_NOT_CLEARED_PRESERVE")
     raw.Quit()
-    return {"normal_quit": True, "recovered_busy": True, "paths": paths}
+    return {"normal_quit": True, "recovered_busy": bool(codes.intersection((-2147417846,-2147418111))),
+            "recovered_server_fault": -2147417851 in codes,"initial_hresult":initial_hresult,"paths": paths}

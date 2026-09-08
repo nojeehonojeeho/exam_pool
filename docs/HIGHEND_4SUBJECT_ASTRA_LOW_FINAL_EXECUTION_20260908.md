@@ -72,3 +72,11 @@ HARD_BLOCKER로 기록하되 독립적으로 가능한 나머지 작업은 계�
 - 승인창 조회 실패, 등록 False, 이전 세션 미종료는 새 COM 생성을 차단한다. 소스 검수는 계속할 수 있다. 단일 문항 복사·이동 PASS를 전체 교재 PASS로 승격하지 않는다.
 
 관련 합성 테스트: `test_hwp_solution_flow.py`, `test_highend_writer_flow_patch.py`, `test_hwp_owned_quit.py`, `test_hwp_com_security_serial_probe.py`.
+
+## 문장 안 참조 표시와 경우 제목
+
+- 검수 원문에 존재하는 참조 표시만 `metadata.unbreakable_phrases`에 명시한다. `app.hwp_protected_text`는 해당 구문 안의 공백만 실제 `InsertNonBreakingSpace`로 삽입한다. 원문 문장이나 숫자·수식은 다시 쓰지 않는다. `tools/highend_writer_protected_text_patch.py <writer>`로 실제 경로의 적용 상태를 확인한다.
+- 저장 HWPX의 `nbSpace`는 일반 공백과 다른 제어로 보존·검사한다. 모든 공백을 삭제하거나 일괄 정규화하여 불일치를 숨기지 않는다. 허용된 표시 외 공백·문단·수식 경계는 정확히 비교한다. 미주 전후에도 같은 보호 구문 계약을 적용한다.
+- 원문에서 확인한 경우 구분 제목은 `role=case_heading`과 `keep_with_next=true`로 다음 설명과 묶는다. 일반 문장을 제목으로 추측하지 않으며, 제목만 페이지 아래에 남는지 미주 렌더에서도 검사한다.
+- 종료 실패는 예외의 실제 HRESULT와 EXCEPINFO를 기록한다. RPC busy와 `RPC_E_SERVERFAULT`를 혼동하지 않는다. 후자는 정상 종료 중 실제 관찰된 코드 `-2147417851`이다. 소유 PID/빈 문서 상태 확인 뒤 정상 Quit을 한 번 더 요청하는 것 외에 자동 강제 종료는 하지 않는다. 재열림 실패 전 저장된 파일은 보존하고 재열림부터 이어갈 수 있다.
+- 복사·이동 검사에서도 문항 COM 컨트롤 참조를 종료 전에 해제한다. 일반 텍스트뿐 아니라 본문 수식, 그림 리소스, 미주 본문, 자동 번호, COM 수식 순서를 함께 비교한다.

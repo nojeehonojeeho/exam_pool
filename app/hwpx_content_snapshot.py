@@ -47,7 +47,7 @@ def snapshot_node(node, *, binary_hashes=None):
             # Child tab/line-break controls are not silently discarded.
             text = element.text or ""
             for child in element:
-                text += {"tab": "\t", "lineBreak": "\n"}.get(_tag(child), "<CONTROL:" + _tag(child) + ">")
+                text += {"tab": "\t", "lineBreak": "\n", "nbSpace": "\u00a0"}.get(_tag(child), "<CONTROL:" + _tag(child) + ">")
                 text += child.tail or ""
             return [{"type": "text", "text": text}] if text else []
         if tag in {"run", "p", "sec", "subList", "tc", "ctrl"}:
