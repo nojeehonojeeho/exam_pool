@@ -62,7 +62,7 @@ _SYMBOLS = {
     "subseteq": "⊆", "supset": "⊃", "supseteq": "⊇", "cup": "∪", "cap": "∩",
     "emptyset": "∅", "varnothing": "∅", "setminus": "∖", "mid": "|",
     "vert": "|", "Vert": "∥", "parallel": "∥", "perp": "⊥", "angle": "∠",
-    "triangle": "△", "sim": "∼", "approx": "≈", "equiv": "≡", "cong": "≅",
+    "triangle": "△", "square": "□", "sim": "∼", "approx": "≈", "equiv": "≡", "cong": "≅",
     "ldots": "…", "dots": "…", "cdots": "⋯", "vdots": "⋮", "ddots": "⋱",
     "circ": "∘", "forall": "∀", "exists": "∃", "partial": "∂", "nabla": "∇",
     "ell": "ℓ", "prime": "′", "therefore": "∴", "because": "∵", "%": "%", "bigcirc": "○",

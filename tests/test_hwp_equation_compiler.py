@@ -26,6 +26,7 @@ def compile_tex(value):
     (r"\begin{pmatrix}a&b\\c&d\end{pmatrix}", "pmatrix {a & ~~ b # c & ~~ d}"),
     (r"\left.x\right|_{0}^{1}", "left . x right |_{0}^{1}"),
     (r"\boxed{4}", "box {4}"),
+    (r"0\square\square\square\square", "0 □ □ □ □"),
     (r"\left|\frac{x}{2}\right|", "left | {{x} over {2}} right |"),
 ])
 def test_preserves_atom_boundaries(source, expected):
