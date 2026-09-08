@@ -58,3 +58,34 @@ def test_figure_without_true_relationship_is_not_implicitly_bound():
         result=bind_solution_flow([{"type":"text","text":"독립 문단"},
                                   {"type":"figure","metadata":{"keep_with_previous":flag}}])
         assert 'keep_with_next' not in result[0]
+
+
+def test_explicit_inline_formula_continuation_preserves_both_paragraphs():
+    blocks=[{"type":"text","text":"합성 조건이고"},
+            {"type":"text","segments":[{"type":"equation","script":"x>=0"}],
+             "metadata":{"keep_with_previous":True}}]
+    result=bind_solution_flow(blocks)
+    assert result[0]["keep_with_next"] is True
+    assert result[1]==blocks[1]
+    assert "keep_with_next" not in blocks[0]
+
+
+def test_korean_ending_alone_does_not_create_a_flow_relationship():
+    blocks=[{"type":"text","text":"합성 조건이고"},{"type":"text","text":"독립 문장"}]
+    assert bind_solution_flow(blocks)==blocks
+
+
+def test_explicit_multi_paragraph_chain_is_idempotent():
+    blocks=[{"type":"text","text":"가정"},
+            {"type":"text","text":"변수 정의","metadata":{"keep_with_previous":True}},
+            {"type":"text","text":"결과","metadata":{"keep_with_previous":True}}]
+    result=bind_solution_flow(blocks)
+    assert result[0]["keep_with_next"] and result[1]["keep_with_next"]
+    assert "keep_with_next" not in result[2]
+    assert bind_solution_flow(result)==result
+
+
+def test_non_boolean_continuation_does_not_bind_text():
+    for flag in (False,None,"true",1):
+        blocks=[{"type":"text","text":"가정"},{"type":"text","text":"결과","metadata":{"keep_with_previous":flag}}]
+        assert bind_solution_flow(blocks)==blocks

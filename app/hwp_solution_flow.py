@@ -9,7 +9,14 @@ from copy import deepcopy
 def bind_solution_flow(blocks):
     result=deepcopy(blocks)
     for current,following in zip(result,result[1:]):
-        if current.get("type")=="text" and following.get("type")=="figure" and following.get("metadata",{}).get("keep_with_previous") is True:
+        # An explicitly reviewed semantic continuation may itself be a text
+        # paragraph containing inline equations, not a display-equation block.
+        # Do not infer this relationship from Korean endings or OCR line breaks.
+        if (
+            current.get("type") in {"text", "display_equation"}
+            and following.get("type") in {"text", "display_equation", "figure", "table", "condition_box"}
+            and following.get("metadata", {}).get("keep_with_previous") is True
+        ):
             current["keep_with_next"]=True
         if current.get("role")=="case_heading":
             current["keep_with_next"]=True
