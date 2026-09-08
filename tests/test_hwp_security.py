@@ -8,6 +8,47 @@ from app.integrations import hwp_security
 
 
 class TestHwpSecurity(unittest.TestCase):
+    def _registration(self):
+        return hwp_security.ModuleRegistration(
+            module_id="FilePathCheckerModule",
+            key_path=hwp_security.PRIMARY_KEY_PATH,
+            dll_path="C:/approved/FilePathCheckerModule.dll",
+            registry_type=1,
+            sha256="A" * 64,
+            machine="x86",
+            pe_format="PE32",
+        )
+
+    def test_register_module_return_value_is_required(self):
+        class Stub:
+            def __init__(self, result):
+                self.result = result
+                self.calls = []
+
+            def RegisterModule(self, **kwargs):
+                self.calls.append(kwargs)
+                return self.result
+
+        stub = Stub(True)
+        result = hwp_security.activate_registered_module(
+            stub,
+            registration=self._registration(),
+        )
+        self.assertTrue(result.returned)
+        self.assertEqual(stub.calls, [{"ModuleType": "FilePathCheckDLL", "ModuleData": "FilePathCheckerModule"}])
+
+    def test_register_module_false_fails_closed(self):
+        class Stub:
+            def RegisterModule(self, **kwargs):
+                return False
+
+        with self.assertRaises(hwp_security.HwpSecurityError) as context:
+            hwp_security.activate_registered_module(
+                Stub(),
+                registration=self._registration(),
+            )
+        self.assertEqual(context.exception.code, "HWP_SECURITY_MODULE_NOT_ACTIVE")
+
     def test_frozen_app_uses_bundled_path_checker(self):
         with TemporaryDirectory() as temporary:
             install = Path(temporary)

@@ -250,8 +250,15 @@ def main(argv=None) -> int:
             if not _ensure_file_path_checker_registry():
                 print("한글 파일 경로 승인 모듈을 등록하지 못했습니다.", file=sys.stderr)
                 return 2
-            from pyhwpx import Hwp
-            isolated = Hwp(new=True, visible=not args.hidden, register_module=True, on_quit=False)
+            if __package__:
+                from .hwp_security import create_secure_hwp
+            else:
+                from hwp_security import create_secure_hwp
+            isolated = create_secure_hwp(
+                new=True,
+                visible=not args.hidden,
+                on_quit=False,
+            )
             hwp_engine.hwp = isolated
         else:
             hwp_engine.connect()

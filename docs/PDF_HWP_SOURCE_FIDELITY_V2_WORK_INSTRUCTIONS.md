@@ -404,3 +404,36 @@ closure 결과는 `formula-occurrence-ledger.jsonl`과
 충돌·MathIR hash 불일치·dialect 누락이면 전체 writer 진입과 최종 PASS를 차단하며,
 raw finding 원장은 삭제하지 않는다. closure가 PASS가 되더라도 이후 HWPX 저장,
 COM 재열림, 문제-해설 미주 연결, 레이아웃 게이트를 별도로 통과해야 한다.
+
+### 12.6 HWP COM 파일 접근 승인 보안 게이트
+
+모든 writer/readback/roundtrip/transfer/postprocess 진입점은
+`app/integrations/hwp_security.py`의 `create_secure_hwp()`를 공통 사용한다.
+`pyhwpx.Hwp(register_module=True)`만으로 성공했다고 간주하지 않는다.
+
+파일 접근 전에 다음을 순서대로 확인한다.
+
+```text
+HKCU\\Software\\HNC\\HwpAutomation\\Modules
+  REG_SZ FilePathCheckerModule
+  → FilePathCheckerModule.dll 존재·SHA-256·PE 형식·한글 비트수 확인
+  → HwpObject.RegisterModule("FilePathCheckDLL", "FilePathCheckerModule")
+  → 실제 반환값 True 확인
+```
+
+DLL 또는 레지스트리 검증이 실패하거나 `RegisterModule`이 False이면
+`HWP_SECURITY_MODULE_NOT_ACTIVE`로 즉시 종료한다. 승인 팝업을 무기한 기다리거나
+화면 좌표 클릭으로 우회하지 않는다. 이미 열린 팝업은 대상이 허용 경로일 때만
+사용자가 한 번 해제할 수 있지만, 그것은 영구 해결이나 PASS 증거가 아니다.
+
+한글 COM은 직렬 실행한다. 새 문서 두 개를 별도 파일명으로 저장하고 HWP/HWPX
+재열림·PDF 출력·새로 만든 Hwp PID 정상 종료·승인 팝업 0회를 확인한다. 기존
+출력물을 덮어쓰지 않는 `work/hwp_security_probe_*`에 증거를 보존한다.
+다수의 고아 Hwp 프로세스로 DispatchEx/makepy가 일시 실패할 때만
+`PYHWPX_FORCE_STANDALONE=1` 격리 세션을 한 번 재시험하며, 반복 실패는
+`REVIEW_REQUIRED`로 남긴다.
+
+현재 검증된 DLL은 x86/PE32, SHA-256
+`9AC5B97C47AC8AED1E8BCA27A3EEF39411361D8F68C262509F0C40A8F9D21BB6`이며,
+한글 2024 x86/PE32와 일치한다. 상세 절차와 실행 명령은
+`docs/HWP_COM_AUTOMATION_SECURITY.md`를 따른다.

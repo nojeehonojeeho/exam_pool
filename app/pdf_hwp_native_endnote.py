@@ -490,10 +490,10 @@ def build_native_endnote_hwp(
             raise FileNotFoundError(path)
     job.output_hwp.parent.mkdir(parents=True, exist_ok=True)
     if hwp_factory is None:
-        from pyhwpx import Hwp
+        from app.integrations.hwp_security import create_secure_hwp
 
-        hwp_factory = Hwp
-    hwp = hwp_factory(new=True, visible=visible, register_module=True, on_quit=False)
+        hwp_factory = create_secure_hwp
+    hwp = hwp_factory(new=True, visible=visible, on_quit=False)
     rows: list[dict[str, Any]] = []
     try:
         if not hwp.open(str(job.solution_hwp), format="HWP"):
