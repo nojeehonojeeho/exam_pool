@@ -239,9 +239,12 @@ _COMMON_FIELDS = frozenset({
     # block remains traceable to its reviewed source span.  They are metadata
     # at this boundary; the writer still consumes only the semantic payload.
     "source_block_id", "source_block_sequence", "source_formula_id",
-    "source_occurrence_id", "source_region", "source_cell", "source_cells",
+    "source_occurrence_id", "formula_occurrence_id", "source_region", "source_cell", "source_cells",
     "source_cells_text", "source_script", "source_order", "source_page",
-    "source_column", "source_pdf", "source_evidence", "figure_id", "figure_ref",
+    "source_column", "source_pdf", "source_pdf_sha256", "source_pdf_hash",
+    "source_pdf_verified", "source_text_sha256", "formula_source_sha256",
+    "source_crop_sha256", "crop_sha256", "bbox_pt", "source_evidence", "evidence_status",
+    "dialect_script", "dialect_status", "dialect", "hwp_dialect", "mathir", "figure_id", "figure_ref",
     "figure_refs", "caption", "note", "table_note", "equivalent_to", "width_mm",
     "representation", "semantic_content", "grid", "contains_text", "headers",
     "column_ratio", "cell_left_mm", "cell_right_mm", "cell_top_mm", "cell_bottom_mm",

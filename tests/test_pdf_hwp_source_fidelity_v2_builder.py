@@ -120,6 +120,27 @@ def test_unknown_nested_text_field_is_a_hard_failure() -> None:
     assert any(row["code"] == "AUTHORING_UNKNOWN_FIELD" and row["path"].endswith("/quesiton") for row in findings)
 
 
+def test_formula_provenance_metadata_is_consumed_as_traceability_not_content() -> None:
+    _, _, findings = normalize_content_blocks([
+        {
+            "type": "display_equation",
+            "script": "x",
+            "script_language": "latex",
+            "formula_occurrence_id": "SYN:F:001",
+            "source_order": 1,
+            "source_text_sha256": "a" * 64,
+            "source_pdf_sha256": "b" * 64,
+            "source_pdf_verified": True,
+            "source_evidence": {"pdf_page": 1, "bbox_pt": [1, 1, 2, 2], "source_crop_sha256": "c" * 64, "dpi": 900},
+            "mathir": {"source_sha256": "a" * 64, "kind": "atom", "value": "x"},
+            "dialect_script": "x",
+            "dialect_status": "VERIFIED_SOURCE_BOUND",
+            "evidence_status": "VERIFIED",
+        },
+    ])
+    assert findings == ()
+
+
 def test_consumption_ledger_requires_writer_and_readback() -> None:
     _, ledger, findings = normalize_content_blocks([{"type": "text", "text": "문장"}])
     assert findings == ()
