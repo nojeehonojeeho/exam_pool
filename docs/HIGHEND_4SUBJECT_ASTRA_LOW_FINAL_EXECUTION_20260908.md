@@ -21,6 +21,13 @@
 과거 VERIFIED나 메타데이터 존재만으로 closure를 인정하지 않는다. 유효한 체크포인트를
 찾아 원본·입력·코드·출력 해시와 변경 영향에 따라 재사용한다.
 
+`pdf_hwp_scope_reconciliation`은 메타데이터 진단기다. 과거 VERIFIED 수만 legacy로
+집계하고 CLOSED 메타데이터는 `source_evidence_claim_ids`로 보존한다. 이 모듈의
+`closure_assessment=NOT_PERFORMED_BY_METADATA_RECONCILER`는 전체 증거를 감사했다는
+뜻이 아니다. 반환되는 closed=0을 실제 과거 검수 성과가 전무하다는 주장으로 쓰지
+않는다. 기존 체크포인트 증거를 별도 색인에서 찾아 실제 검수해야 한다. 이 진단기의
+`final_eligible`은 항상 false이며 출고 판정은 실제 production evidence gate가 한다.
+
 포함 영역 전체는 600dpi로 원문과 대조하고 불명확한 부분만 900dpi로 확인한다.
 OCR은 후보다. 문항·조건·질문·선지·표·그림·숫자·정답·풀이와 읽기 순서를 보존한다.
 수식이 있는 문항은 occurrence 소유권·순서와 source→MathIR→writer→HWPX→COM

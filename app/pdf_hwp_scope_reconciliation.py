@@ -104,6 +104,8 @@ class ScopeReconciliation:
     open_ids: tuple[str, ...]
     duplicate_candidate_ids: tuple[str, ...]
     duplicate_reviewed_ids: tuple[str, ...]
+    source_evidence_claim_ids: tuple[str, ...] = ()
+    unexpected_reviewed_ids: tuple[str, ...] = ()
 
     @property
     def candidate_id_count(self) -> int:
@@ -123,8 +125,13 @@ class ScopeReconciliation:
 
     @property
     def final_eligible(self) -> bool:
-        """Return whether this scope is closed without duplicate IDs."""
-        return not self.open_ids and not self.duplicate_candidate_ids and not self.duplicate_reviewed_ids
+        """Metadata reconciliation cannot certify source or artifact fidelity.
+
+        Use the evidence-bound production release gate for actual promotion.
+        In particular, an empty scope and fabricated CLOSED metadata must not
+        turn this diagnostic into a successful release command.
+        """
+        return False
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -140,6 +147,10 @@ class ScopeReconciliation:
             "open_ids": list(self.open_ids),
             "duplicate_candidate_ids": list(self.duplicate_candidate_ids),
             "duplicate_reviewed_ids": list(self.duplicate_reviewed_ids),
+            "source_evidence_claim_ids": list(self.source_evidence_claim_ids),
+            "unexpected_reviewed_ids": list(self.unexpected_reviewed_ids),
+            "closure_assessment": "NOT_PERFORMED_BY_METADATA_RECONCILER",
+            "declared_count_matches_candidates": self.declared_item_count == self.candidate_id_count if self.declared_item_count is not None else None,
             "final_eligible": self.final_eligible,
         }
 
@@ -156,10 +167,13 @@ def reconcile_scope(
     reviewed = [str(value) for item in reviewed_list if (value := _item_id(item))]
     candidate_set = set(candidates)
     reviewed_set = set(reviewed)
-    closed = {_item_id(item) for item in reviewed_list if _item_id(item) and _explicitly_closed(item)}
-    closed &= candidate_set
-    legacy = reviewed_set & candidate_set
-    open_ids = (candidate_set - closed) | (closed - candidate_set)
+    claims = {_item_id(item) for item in reviewed_list if _item_id(item) and _explicitly_closed(item)} & candidate_set
+    # Presence of metadata is not independent evidence validation. Preserve
+    # claims for the evidence index; do not silently discard prior checkpoints
+    # or certify their source/readback/visual correctness here.
+    closed: set[str] = set()
+    legacy = {_item_id(item) for item in reviewed_list if _status(item) == "VERIFIED"} & candidate_set
+    open_ids = candidate_set - closed
     return ScopeReconciliation(
         candidate_ids=tuple(sorted(candidate_set)),
         declared_item_count=declared_item_count,
@@ -168,6 +182,8 @@ def reconcile_scope(
         open_ids=tuple(sorted(open_ids)),
         duplicate_candidate_ids=tuple(sorted({x for x in candidates if candidates.count(x) > 1})),
         duplicate_reviewed_ids=tuple(sorted({x for x in reviewed if reviewed.count(x) > 1})),
+        source_evidence_claim_ids=tuple(sorted(claims)),
+        unexpected_reviewed_ids=tuple(sorted(reviewed_set - candidate_set)),
     )
 
 

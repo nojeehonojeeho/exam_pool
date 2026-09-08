@@ -43,8 +43,10 @@ def test_explicit_source_evidence_closes_only_the_same_candidate_id() -> None:
             {"item_id": "Q-9", "evidence_status": "CLOSED"},
         ],
     )
-    assert result.evidence_closed_ids == ("Q-1",)
-    assert result.open_ids == ("Q-2",)
+    assert result.evidence_closed_ids == ()
+    assert result.source_evidence_claim_ids == ("Q-1",)
+    assert result.open_ids == ("Q-1", "Q-2")
+    assert result.unexpected_reviewed_ids == ("Q-9",)
 
 
 def test_generator_inputs_are_materialized_before_closure_is_calculated() -> None:
@@ -67,5 +69,21 @@ def test_generator_inputs_are_materialized_before_closure_is_calculated() -> Non
             ]
         ),
     )
-    assert result.evidence_closed_ids == ("Q-1",)
-    assert result.final_eligible is True
+    assert result.evidence_closed_ids == ()
+    assert result.source_evidence_claim_ids == ("Q-1",)
+    assert result.final_eligible is False
+
+
+def test_empty_scope_never_releases():
+    assert reconcile_scope([], []).final_eligible is False
+
+
+def test_legacy_count_excludes_pending_and_missing_status():
+    result = reconcile_scope(
+        [{"item_id": key} for key in ("A", "B", "C")],
+        [{"item_id": "A", "review_status": "VERIFIED"},
+         {"item_id": "B", "review_status": "NEEDS_REVIEW"},
+         {"item_id": "C"}], declared_item_count=4,
+    )
+    assert result.legacy_reviewed_ids == ("A",)
+    assert result.as_dict()["declared_count_matches_candidates"] is False
