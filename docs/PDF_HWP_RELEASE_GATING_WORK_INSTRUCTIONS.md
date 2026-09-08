@@ -122,3 +122,25 @@ reopen_pass && content_pass && equation_pass && endnote_pass
 내용 불변, 수식 구조, 문항별 미주 연결, 스타일, 전 페이지 시각 검사를 처음부터
 실행한다. 모든 게이트가 닫히기 전에는 FINAL·완성본·전체 PASS·출고 가능으로 보고하지
 않는다.
+
+## 범위 집계 보정 규칙
+
+출고 게이트는 `candidate_id_count`, `declared_item_count`,
+`legacy_reviewed_scope_count`, `evidence_closed_item_count`,
+`evidence_open_item_count`를 분리해 기록한다. `review_status=VERIFIED`인 과거
+원장 수는 레거시 검토 수일 뿐이다. 문항별 원본 PDF·페이지·bbox·crop SHA-256·검수
+실행 ID·문제-해설 대응이 명시되고 `evidence_status=CLOSED`인 항목만 증거 종료 수에
+포함한다. 후보 ID와 선언 항목 수의 차이는 변형문항·소문항·하위 블록 산식으로
+기록하며 실제 누락 수로 자동 승격하지 않는다.
+
+Step B처럼 기본문항과 `-1` 변형문항이 같은 인쇄 번호 아래 있는 경우에는 원본에서
+확인된 두 항목을 별도 ID·bbox·해설 대응으로 확장한다. 번호 목록 길이나 HWP 개수만으로
+출고 범위를 확정하지 않는다.
+
+## COM 재열림 종료 조건
+
+COM 실행은 직렬 잠금 아래에서 `run_id`, 소유 PID, 재열림 PID, 단계별 deadline을
+기록한다. 승인창 조회 실패는 승인창 0회가 아니라
+`WINDOW_ENUMERATION_UNAVAILABLE`로 처리한다. 저장·닫기·재열림·PDF 출력과 모든
+작업 소유 PID 종료가 확인된 경우에만 `reopen_pass=true`를 부여하며, XML-only 또는
+`skip-com` 결과는 COM PASS로 승격하지 않는다.

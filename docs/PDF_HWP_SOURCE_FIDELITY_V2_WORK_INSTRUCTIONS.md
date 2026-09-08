@@ -487,3 +487,53 @@ DLL 또는 레지스트리 검증이 실패하거나 `RegisterModule`이 False�
 `9AC5B97C47AC8AED1E8BCA27A3EEF39411361D8F68C262509F0C40A8F9D21BB6`이며,
 한글 2024 x86/PE32와 일치한다. 상세 절차와 실행 명령은
 `docs/HWP_COM_AUTOMATION_SECURITY.md`를 따른다.
+
+### 12.9 후보 문항 수·변형 문항·레거시 검토 수의 분리
+
+후보 manifest의 `items` 또는 `item_count`는 실제 출고 문항 수로 자동 승격하지
+않는다. 다음 값을 별도로 기록한다.
+
+```text
+candidate_id_count
+declared_item_count
+legacy_reviewed_scope_count
+evidence_closed_item_count
+evidence_open_item_count
+```
+
+`legacy_reviewed_scope_count`는 과거 원장에 `review_status=VERIFIED`라고 적힌 ID의
+수이며, 원본 충실도 증거가 닫힌 문항 수가 아니다. `evidence_closed_item_count`는
+문항별 원본 PDF SHA-256, 페이지, bbox, crop SHA-256, 검수 실행 ID와 내용·수식·해설
+대응 증거가 함께 있고 `evidence_status=CLOSED`인 동일 ID만 센다. `VERIFIED` 문자열,
+현재 HWPX 수식 개수, 출력 파일 존재만으로는 closed가 되지 않는다.
+
+Step B처럼 하나의 인쇄 번호에서 기본문항과 `-1` 변형문항이 함께 나오는 구조는
+번호 목록 개수와 실제 item 후보 개수를 따로 기록한다. Step B의 각 번호는 원본에서
+확인된 경우 `<번호>`와 `<번호>-1`을 각각 고유 item ID로 확장하고, 두 ID에 페이지,
+bbox, 읽기 순서, 해설 대응을 따로 부여한다. 변형을 생략한 목록과 단순히
+`item_count`를 두 배로 만든 목록은 정본이 아니다.
+
+범위 재조정기는 후보 ID 집합과 검토 ID 집합의 차이를 `open_ids`로 보고하며, 이를
+곧바로 실제 누락 문항 수라고 부르지 않는다. `candidate_id_count`와
+`declared_item_count`가 다르면 차이의 산식(변형·소문항·하위 블록)을 기록하고,
+실제 문항 수는 원본 페이지·번호·영역 대조가 끝난 뒤 확정한다.
+
+### 12.10 COM 세션 수명·시간 제한·재열림 추적
+
+한글 자동화는 직렬 잠금 아래에서 실행하며, 각 세션에 `run_id`, 소유 PID, 시작 시각,
+현재 문서, 마지막 성공 단계, deadline, 생성된 모든 Hwp PID를 기록한다. 문서 최초
+생성 PID만 저장하고 재열림 PID를 누락하지 않는다.
+
+COM의 `Open`, `SaveAs`, `Print`, `Close/Quit` 호출에는 단계별 bounded timeout을
+적용한다. 반환이 없으면 새 HWP 인스턴스를 병렬로 추가하지 않고, 저장 여부와 복구
+파일을 확인한 뒤 격리 세션에서 한 번만 재시험한다. 사용자 또는 출처가 불명확한
+Hwp.exe를 이름으로 일괄 종료하지 않는다.
+
+승인창 감시에서 창 목록 조회 실패는 `WINDOW_ENUMERATION_UNAVAILABLE`로 기록하며
+승인창 0회로 간주하지 않는다. 승인창 0회 판정은 조회 성공, 등록된 보안 모듈의
+`RegisterModule=True`, 허용 경로, 테스트 파일 생성, 재열림, 소유 PID 정상 종료가
+모두 있어야 한다.
+
+`skip-com` 또는 XML-only 검사는 COM 재열림 PASS가 아니다. 새 문서 2개를 서로 다른
+이름으로 저장하고 HWP/HWPX/PDF를 다시 열어 검사한 뒤, 처음 생성·재열림 과정에서
+만든 모든 PID가 bounded wait 안에 종료된 경우에만 COM 보안 시험을 PASS로 기록한다.

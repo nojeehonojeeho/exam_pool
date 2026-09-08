@@ -138,6 +138,24 @@
 | RC24 | source ID와 다른 authoring ID를 composite key로 우회 | `FORMULA_AUTHORING_OCCURRENCE_ID_MISMATCH`와 link missing을 함께 기록하고 `REVIEW_REQUIRED` 유지 |
 | RC25 | closure ledger의 item-level crop을 formula-level 증거로 상속 | 수식별 bbox/crop SHA-256/DPI가 직접 없으면 source review open으로 유지 |
 
+| RC26 | 후보 ID 수와 선언 항목 수를 하나의 문항 수로 보고 | 두 값을 분리하고 차이의 원인을 기록; 실제 출고 범위는 원본 대조 후 확정 |
+| RC27 | Step B의 기본 번호만 후보 ID로 생성 | 원본에 `n`·`n-1`이 함께 있으면 두 개의 고유 ID와 별도 해설 대응으로 확장 |
+| RC28 | 레거시 `VERIFIED` 또는 출력 ID 존재를 evidence closure로 승격 | 문항별 PDF hash·페이지·bbox·crop hash·review ID가 있는 `evidence_status=CLOSED`만 closure |
+| RC29 | 승인창 열거 실패를 승인창 0회로 집계 | `WINDOW_ENUMERATION_UNAVAILABLE`로 차단하고 조회 성공 증거 없이는 COM PASS 금지 |
+| RC30 | 최초 Hwp PID만 종료 확인하고 재열림 PID를 누락 | 생성·재열림·출력 단계의 모든 소유 PID와 단계별 deadline을 기록하고 전부 종료 확인 |
+
+### 범위·세션 회귀 테스트
+
+`tests/test_pdf_hwp_scope_reconciliation.py`는 후보 ID 수, 선언 항목 수, 레거시 검토
+수, 명시적 evidence closure 수, 열린 ID 수를 분리한다. `review_status=VERIFIED`만
+있는 문항은 legacy scope로만 집계하고 `final_eligible=false`로 유지한다. Step B
+페이지의 기본/변형 번호는 `expand_step_b_variants()`로 각각 생성한다. 또한 후보·검토
+iterable이 generator여도 중복 순회로 closure가 사라지지 않아야 한다.
+
+COM 재열림 회귀는 `RegisterModule=True`, 승인창 열거 성공, 파일 저장·재열림·PDF 출력,
+최초 및 재열림 Hwp PID 종료가 모두 증거로 남아야 PASS로 인정한다. COM을 생략한
+XML-only 결과는 구조 회귀가 통과해도 `reopen_pass=false` 상태를 유지한다.
+
 ### 수식 provenance gate 합성 회귀
 
 `tests/test_pdf_hwp_formula_provenance_gate.py`는 다음을 고정한다.
