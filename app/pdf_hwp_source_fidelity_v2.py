@@ -259,7 +259,7 @@ _BLOCK_FIELDS: dict[str, frozenset[str]] = {
     "table": _COMMON_FIELDS | frozenset({"rows", "cells", "columns", "colspan", "rowspan", "kind"}),
     "choices": _COMMON_FIELDS | frozenset({"items", "values", "cells", "choices", "layout", "expected_count", "kind"}),
     "choice": _COMMON_FIELDS | frozenset({"label", "value", "index", "ord", "content"}),
-    "figure": _COMMON_FIELDS | frozenset({"kind", "content_role", "contains_text"}),
+    "figure": _COMMON_FIELDS | frozenset({"kind", "content_role", "contains_text", "placement"}),
     "equation": _COMMON_FIELDS | frozenset({"script", "source", "source_script", "script_language", "operator_policies", "cases", "name", "kind"}),
     "inline_equation": _COMMON_FIELDS | frozenset({"script", "source", "source_script", "script_language", "operator_policies", "kind"}),
     "display_equation": _COMMON_FIELDS | frozenset({"script", "source", "source_script", "script_language", "operator_policies", "cases", "name", "kind"}),

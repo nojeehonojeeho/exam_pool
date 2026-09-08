@@ -172,6 +172,10 @@ def audit_authoring_items(items: list[dict[str, Any]], *, asset_root: str | Path
                 if kind in FORBIDDEN_FIGURE_SUBSTITUTES or (kind == "figure" and block.get("representation") in {"native_semantic", "semantic_description"}):
                     findings.append({**context, "code": "FIGURE_DESCRIPTION_REPLACEMENT", "detail": "Original diagrams cannot be substituted by prose or a semantic description table."})
                 elif kind == "figure":
+                    placement = block.get("placement", "block")
+                    in_segments = "/segments/" in path
+                    if placement not in {"block", "inline"} or (placement == "inline") != in_segments:
+                        findings.append({**context, "code": "FIGURE_PLACEMENT_CONTEXT_MISMATCH"})
                     asset = root / str(block.get("path", ""))
                     if block.get("allowed") is not True or block.get("reason") not in PURE_FIGURE_ROLES:
                         findings.append({**context, "code": "FIGURE_NOT_APPROVED"})
