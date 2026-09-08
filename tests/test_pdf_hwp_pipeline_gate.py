@@ -6,6 +6,7 @@ from app.pdf_hwp_pipeline_gate import (
     PipelineStage,
     StageResult,
     evaluate_pipeline_stages,
+    require_final_release,
     require_previous_stages,
 )
 
@@ -35,3 +36,7 @@ def test_complete_stage_chain_passes() -> None:
     assert report.passed
     assert report.next_stage is None
 
+
+def test_final_release_boundary_rejects_stage_only_status() -> None:
+    with pytest.raises(RuntimeError, match="final release is blocked"):
+        require_final_release({"generated": True, "findings": []})

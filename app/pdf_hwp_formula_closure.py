@@ -363,15 +363,12 @@ def build_formula_closure(reviewed_manifest: Mapping[str, Any], authoring_manife
         if source.get("source_occurrence_id"):
             candidates = by_id.get(str(source_id), [])
             match_method = "explicit_occurrence_id"
-            if not candidates and all(value is not None for value in source_key):
-                # An explicit source id may fall back only when the authoring
-                # side omitted its id.  A different explicit id is a hard
-                # identity conflict, even if text/order happen to match.
+            if not candidates:
+                # Once the source side carries an explicit occurrence ID,
+                # authoring must carry the same ID.  A composite fallback
+                # would conceal a source/authoring identity mismatch.
                 composite_candidates = by_key.get(source_key, [])
-                if composite_candidates and all(not candidate.get("formula_occurrence_id") for candidate in composite_candidates):
-                    candidates = composite_candidates
-                    match_method = "exact_composite_key"
-                elif composite_candidates:
+                if composite_candidates:
                     findings.append(_finding("FORMULA_AUTHORING_OCCURRENCE_ID_MISMATCH", source, expected=source_id, actual=[candidate.get("formula_occurrence_id") for candidate in composite_candidates]))
         elif all(value is not None for value in source_key):
             candidates = by_key.get(source_key, [])
@@ -435,25 +432,30 @@ def build_formula_closure(reviewed_manifest: Mapping[str, Any], authoring_manife
     if provenance.get("status") != "PASS":
         findings.append({"code": "FORMULA_PROVENANCE_GATE_FAIL", "stage": "formula-closure", "finding_count": len(provenance.get("findings", []))})
 
+    source_manifest_validation = (
+        validate_source_manifest(reviewed_manifest)
+        if reviewed_manifest.get("schema_version") == SCHEMA_VERSION
+        else {"status": "REVIEW_REQUIRED", "passed": False, "findings": [{"code": "SOURCE_MANIFEST_SCHEMA_UNVERIFIED"}]}
+    )
     source_item_ids = {str(row.get("item_id")) for row in sources if row.get("item_id")}
     item_closed: set[str] = set()
     for item_id in source_item_ids:
         item_rows = [row for row in ledger if str(row.get("item_id")) == item_id]
         if item_rows and all(row.get("closure_status") == "CLOSED" for row in item_rows):
             item_closed.add(item_id)
-    passed = bool(ledger) and not findings and provenance.get("status") == "PASS"
+    passed = bool(ledger) and not findings and provenance.get("status") == "PASS" and source_manifest_validation.get("status") == "PASS" and source_manifest_validation.get("passed") is not False
     report = {
         "schema_version": "formula-closure-v1",
         "status": "PASS" if passed else "REVIEW_REQUIRED",
         "release_status": "PASS" if passed else "REVIEW_REQUIRED",
         "candidate_only": not passed,
         "source_manifest_schema": reviewed_manifest.get("schema_version"),
-        "source_manifest_validation": validate_source_manifest(reviewed_manifest) if reviewed_manifest.get("schema_version") == SCHEMA_VERSION else {"status": "REVIEW_REQUIRED", "passed": False, "findings": [{"code": "SOURCE_MANIFEST_SCHEMA_UNVERIFIED"}]},
+        "source_manifest_validation": source_manifest_validation,
         "provenance_gate": provenance,
         "counts": {
             "source_formula_occurrences": len(sources),
             "authoring_formula_occurrences": len(authors),
-            "linked_formula_occurrences": sum(1 for row in ledger if row.get("match_method")),
+            "linked_formula_occurrences": sum(1 for row in ledger if row.get("closure_status") == "CLOSED" and row.get("authoring_path")),
             "mathir_occurrence_count": sum(1 for row in ledger if isinstance(row.get("mathir"), Mapping) and row.get("mathir")),
             "evidence_closed_item_count": len(item_closed),
             "evidence_open_item_count": len(source_item_ids - item_closed),

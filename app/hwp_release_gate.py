@@ -8,6 +8,8 @@ the source document.
 from __future__ import annotations
 
 import json
+import hashlib
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
@@ -34,6 +36,7 @@ PLACEHOLDER_TOKENS = (
     "source raster",
     "추후 입력",
 )
+_SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 
 
 def _now() -> str:
@@ -56,6 +59,7 @@ def new_status(
     generated: bool = False,
     findings: list[dict[str, Any]] | None = None,
     evidence_files: list[str] | None = None,
+    evidence_root: str = "",
     code_commit_sha: str = "",
 ) -> dict[str, Any]:
     """Create the canonical status object; all release gates start false."""
@@ -80,6 +84,7 @@ def new_status(
         "endnote_body_count": int(endnote_body_count),
         "findings": list(findings or []),
         "evidence_files": list(evidence_files or []),
+        "evidence_root": evidence_root,
         "checked_at": _now(),
         "code_commit_sha": code_commit_sha,
     }
@@ -104,6 +109,61 @@ def _contains_placeholder(value: Any) -> str | None:
     return None
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _resolve_evidence(status: Mapping[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Resolve and hash evidence files without trusting a status string.
+
+    Evidence paths are relative to one explicit root.  An evidence entry may
+    be a string or ``{"path": ..., "sha256": ...}``; a missing root, file,
+    hash, or hash mismatch is a blocking finding.  This keeps old status files
+    useful as candidates while preventing them from being promoted by merely
+    naming an evidence file.
+    """
+
+    raw = status.get("evidence_files")
+    if not isinstance(raw, (list, tuple)) or not raw:
+        return [], [{"code": "EVIDENCE_FILES_MISSING", "blocking": True}]
+    root_value = status.get("evidence_root")
+    if not root_value:
+        return [], [{"code": "EVIDENCE_ROOT_MISSING", "blocking": True}]
+    root = Path(str(root_value)).expanduser()
+    records: list[dict[str, Any]] = []
+    findings: list[dict[str, Any]] = []
+    for entry in raw:
+        if isinstance(entry, Mapping):
+            relative = entry.get("path") or entry.get("relative_path")
+            expected = str(entry.get("sha256") or "").lower()
+        else:
+            relative = entry
+            expected = ""
+        if not isinstance(relative, str) or not relative.strip():
+            findings.append({"code": "EVIDENCE_PATH_INVALID", "blocking": True})
+            continue
+        path = (root / relative).resolve()
+        try:
+            path.relative_to(root.resolve())
+        except ValueError:
+            findings.append({"code": "EVIDENCE_PATH_OUTSIDE_ROOT", "path": relative, "blocking": True})
+            continue
+        if not path.is_file():
+            findings.append({"code": "EVIDENCE_FILE_MISSING", "path": relative, "blocking": True})
+            continue
+        actual = _sha256_file(path)
+        if not _SHA256.fullmatch(expected):
+            findings.append({"code": "EVIDENCE_SHA256_MISSING", "path": relative, "blocking": True})
+        elif actual != expected:
+            findings.append({"code": "EVIDENCE_SHA256_MISMATCH", "path": relative, "expected": expected, "actual": actual, "blocking": True})
+        records.append({"path": str(path), "relative_path": relative, "sha256": actual})
+    return records, findings
+
+
 def evaluate_release(status: Mapping[str, Any]) -> dict[str, Any]:
     """Return a copy with a fail-closed status and final flag.
 
@@ -114,24 +174,22 @@ def evaluate_release(status: Mapping[str, Any]) -> dict[str, Any]:
 
     result = dict(status)
     findings = list(result.get("findings") or [])
-    evidence_files = result.get("evidence_files")
-    if not isinstance(evidence_files, (list, tuple)) or not evidence_files:
-        findings.append({
-            "code": "EVIDENCE_FILES_MISSING",
-            "blocking": True,
-            "detail": "a release status must name its verification evidence files",
-        })
+    evidence_records, evidence_findings = _resolve_evidence(result)
+    findings.extend(evidence_findings)
+    result["resolved_evidence"] = evidence_records
     placeholder = _contains_placeholder(result)
     if placeholder and not any(f.get("code") == "PLACEHOLDER_CONTENT" for f in findings if isinstance(f, Mapping)):
         findings.append({"code": "PLACEHOLDER_CONTENT", "token": placeholder})
     result["findings"] = findings
     gates_pass = all(result.get(field) is True for field in GATE_FIELDS)
+    hwp_hash = str(result.get("hwp_sha256") or "").lower()
+    hwpx_hash = str(result.get("hwpx_sha256") or "").lower()
     result["final"] = bool(
         result.get("generated") is True
         and gates_pass
         and not findings
-        and bool(result.get("hwp_sha256"))
-        and bool(result.get("hwpx_sha256"))
+        and _SHA256.fullmatch(hwp_hash)
+        and _SHA256.fullmatch(hwpx_hash)
     )
     if result["final"]:
         result["status"] = "FINAL"

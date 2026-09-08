@@ -405,6 +405,56 @@ closure 결과는 `formula-occurrence-ledger.jsonl`과
 raw finding 원장은 삭제하지 않는다. closure가 PASS가 되더라도 이후 HWPX 저장,
 COM 재열림, 문제-해설 미주 연결, 레이아웃 게이트를 별도로 통과해야 한다.
 
+### 12.7 OCR 행과 의미 문단의 경계
+
+OCR sidecar의 한 행은 물리적인 검출 행일 뿐 문단이 아니다. 작성기는 이를
+그대로 `BreakPara`로 출력해서는 안 된다. `SourceItemIR`의 의미 블록과
+`paragraph → text/equation runs`를 먼저 확정한 뒤 문단을 만든다. 일반 한글
+문장에 수식이 섞인 경우에도 한 문단 안의 inline native equation으로 보존할 수
+있어야 한다.
+
+조건·보기 표지는 실제 구분자가 있는 `(가)`, `(나)`, `가)`, `가.` 및 원문에서
+확인된 번호 표지만 별도 문단으로 인정한다. `[가-다]`처럼 유니코드 범위를
+사용하거나 괄호를 선택 사항으로 둔 정규식은 금지한다. 문장 종결기호·OCR 행 수
+상한·수식 검출 여부만으로 문단을 강제 분리하지 않는다. 줄 끝 어절이 다음 행으로
+이어진다는 증거가 있으면 하나의 문단으로 복원하고, 원문의 공백·숫자·부호를
+임의로 추가/삭제하지 않는다.
+
+해설은 `출제영역` 문자열, OCR 검출 개수, 목록 순서만으로 시작·끝을 추정하지
+않는다. 인쇄 문항 번호, 정답 표제, 단원 구획, 실제 시작/끝 bbox와 다단·다쪽
+continuation을 함께 기록한다. 기대 개수를 맞추려고 긴 블록을 절반으로 자르거나
+빈 문항을 삽입하거나 문제 목록과 `zip` 순서로 대응하는 것은 금지한다. 대응이
+닫히지 않으면 해당 writer와 미주를 `EVIDENCE_OPEN`으로 중지한다.
+
+표·조건 상자·선지·그림은 typed block과 소유 `item_id`를 가져야 한다. 원문에서
+존재하는데 출력 개수가 0이면 자동 FAIL이다. 수식과 그림 설명문을 서로 대체하지
+않으며, 평문/이미지 수식 fallback을 허용하지 않는다.
+
+### 12.8 증거 파일과 출고 게이트의 실행 강제
+
+`document-release-status.json`의 `evidence_files`는 문자열 목록만으로 충분하지
+않다. `evidence_root`와 각 증거의 상대경로·SHA-256·run_id·scope_hash·source
+PDF/manifest/compiler/writer/artifact hash를 저장하고, 게이트가 실제 파일 존재와
+해시 일치를 다시 계산한다. 존재하지 않는 이름, 임의의 `h`/`x` 해시, 다른 실행의
+증거는 FINAL을 만들 수 없다. 상태 폴더와 프로젝트 루트의 상대경로를 혼용하지
+않고 단일 evidence root를 사용한다.
+
+시각 검수는 `expected_pages`와 `checked_pages` 숫자만으로 PASS가 아니다. 모든
+페이지가 정확히 한 번씩 있어야 하고 페이지 번호·렌더 SHA-256·DPI·픽셀 크기·실제
+수동 검수 결과를 포함해야 한다. `pages=[]`, 중복/누락 페이지, 자기신고만 있는
+`manual_review_completed`는 차단한다. 잉크량 검사는 빈 페이지 보조 검사일 뿐
+내용·문단·수식·배치 검수를 대체하지 않는다.
+
+미주 검사는 실제 참조/본문의 문항 ID·번호·내용 fingerprint를 필수로 한다.
+`None == None`, 같은 미주 번호의 반복 또는 빈 body fingerprint를 통과 근거로
+사용하지 않는다. 문제·해설 단독 문서의 미주 없음은 실제 구조 증거가 있는
+`NOT_APPLICABLE`로 기록하고, 통합본에서는 우회할 수 없다.
+
+수식 closure의 `linked_formula_occurrences`는 `match_method`가 존재하는 행이
+아니라 `closure_status=CLOSED`이며 실제 `authoring_path`와 MathIR/dialect가
+연결된 occurrence만 센다. source manifest 검증 결과가 REVIEW_REQUIRED이면
+closure 최상위도 PASS가 아니다.
+
 ### 12.6 HWP COM 파일 접근 승인 보안 게이트
 
 모든 writer/readback/roundtrip/transfer/postprocess 진입점은

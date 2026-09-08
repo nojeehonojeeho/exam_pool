@@ -36,6 +36,12 @@
 플레이스홀더, 미검수 OCR, 설명문만 있는 그림, 평문/이미지 수식 대체, 가짜 미주는
 자동 FAIL한다. 대표 페이지 검사는 전 페이지 검사를 대체하지 못한다.
 
+파이프라인 경계에서는 반드시 `app.pdf_hwp_pipeline_gate.require_final_release`를
+호출한다. 단계 체인이 PASS여도 이 호출의 반환값 `final=true`가 아니면 패키징·공개를
+진행하지 않는다. 이 경계는 실제 evidence root, 존재하는 evidence 파일, 일치하는
+SHA-256, layout contract와 모든 차단 finding을 함께 확인하며, 누락된 호출 자체를
+회귀 결함으로 취급한다.
+
 ## 범위·재구성·증거 종료를 분리한다
 
 문항 인벤토리에 잡힌 수는 제작 완료나 원본 대조 완료를 의미하지 않는다. 상태
@@ -76,7 +82,11 @@ root_cause_count                 = root_cause_id로 묶은 독립 원인 수
 생성 파일, HWPX XML 정상, equation 개수 일치, 300dpi 자동 렌더가 모두 성공해도
 원본 수식 crop·MathIR·문항별 의미 비교·미주 item mapping·전 페이지 수동 시각
 비교가 닫히지 않았다면 `CANDIDATE` 또는 `BLOCKED`다. 원본과 다른 페이지 크기·단
-구성·페이지 수가 발견되면 `PAGE_GEOMETRY_MISMATCH`를 차단 finding으로 남긴다.
+구성·페이지 수가 발견되면, 사전에 선언한 `effective_layout_contract`와 비교해
+계약을 위반한 경우에만 `PAGE_GEOMETRY_MISMATCH`를 차단 finding으로 남긴다. 문제
+범위만 추출하거나 해설을 미주로 재배치한 경우 전체 원본 쪽수와 출력 쪽수의
+불일치만으로 차단하지 않는다. source-region 모드에서는 원문 페이지·영역의 실제
+기하를, item-reflow 모드에서는 선언한 편집 프로필과 문항/개체 순서를 검사한다.
 `FINAL` 디렉터리로 복사하거나 파일명에 `완성본`을 붙이는 후처리는 허용하지 않는다.
 
 ## 상태 증거 파일
@@ -93,8 +103,17 @@ root_cause_count                 = root_cause_id로 묶은 독립 원인 수
 ```text
 reopen_pass && content_pass && equation_pass && endnote_pass
 && style_pass && visual_pass && findings.length == 0
-&& hwp_sha256 != "" && hwpx_sha256 != ""
+&& hwp_sha256, hwpx_sha256가 각각 64자리 SHA-256
+&& evidence_root가 존재하고 evidence_files가 실제 파일·SHA-256과 일치
+&& effective_layout_contract가 source/role/scope와 일치
 ```
+
+`evidence_files`의 경로·해시 문자열만으로는 증거가 아니다. 게이트가 실행 시
+실제 파일을 읽고 SHA-256·run_id·scope_hash를 재확인한다. `pages=[]`, 중복/누락
+페이지, 미주 번호·fingerprint 누락, source manifest schema 실패, authoring
+`match_method`만 있는 수식은 모두 차단한다. 정상 관찰 기록은 미해결 finding과
+분리하며, 경로명에 `pending`이 포함되었다는 이유만으로 본문 placeholder로
+판정하지 않는다.
 
 ## 현재 진행 중인 산출물 처리
 

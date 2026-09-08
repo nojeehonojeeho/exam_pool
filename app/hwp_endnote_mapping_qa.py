@@ -34,6 +34,17 @@ def validate_endnote_mapping(
             findings.append({"code": "ENDNOTE_BODY_FINGERPRINT_MISMATCH", "index": index, "blocking": True})
     if len(refs) != len(expected) or len(notes) != len(expected):
         findings.append({"code": "ENDNOTE_COUNT_MISMATCH", "expected": len(expected), "references": len(refs), "bodies": len(notes), "blocking": True})
+    ref_numbers = [ref.get("endnote_number") for ref in refs]
+    body_numbers = [body.get("endnote_number") for body in notes]
+    if any(number in (None, "") for number in ref_numbers + body_numbers):
+        findings.append({"code": "ENDNOTE_NUMBER_MISSING", "blocking": True})
+    if len(ref_numbers) != len(set(ref_numbers)) or len(body_numbers) != len(set(body_numbers)):
+        findings.append({"code": "ENDNOTE_NUMBER_DUPLICATE", "blocking": True})
+    for index, (ref, body) in enumerate(zip(refs, notes), 1):
+        ref_fp = ref.get("body_fingerprint")
+        body_fp = body.get("body_fingerprint")
+        if not isinstance(ref_fp, str) or not ref_fp.strip() or not isinstance(body_fp, str) or not body_fp.strip():
+            findings.append({"code": "ENDNOTE_BODY_FINGERPRINT_MISSING", "index": index, "blocking": True})
     return {
         "status": "PASS" if not findings else "FAIL",
         "item_count": len(expected),

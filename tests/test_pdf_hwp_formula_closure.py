@@ -19,6 +19,7 @@ def _source(*, occurrence_id: str | None = "SYN-1-F001", bbox: bool = True) -> d
         "review_status": "VERIFIED",
         "source_crop_sha256": "b" * 64,
         "dpi": 900,
+        "mathir": {"root": "power", "source_sha256": _sha(source)},
     }
     if occurrence_id:
         formula["formula_occurrence_id"] = occurrence_id

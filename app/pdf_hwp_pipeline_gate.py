@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from .hwp_release_gate import evaluate_release
+
 
 class PipelineStage(StrEnum):
     INPUT_INVENTORY = "input_inventory"
@@ -127,3 +129,25 @@ def require_previous_stages(
             f"cannot start {requested_stage.value}; previous QA gate failed: " + ", ".join(failures)
         )
 
+
+def evaluate_final_release(status: Mapping[str, Any]) -> dict[str, Any]:
+    """Apply the fail-closed artifact/evidence gate at the pipeline boundary.
+
+    Stage completion is necessary but is not by itself permission to label a
+    file FINAL.  Callers should persist this returned object and only publish
+    when ``final`` is true; missing evidence files, invalid hashes, incomplete
+    visual coverage, or unresolved native endnote findings remain blocking.
+    """
+
+    return evaluate_release(status)
+
+
+def require_final_release(status: Mapping[str, Any]) -> dict[str, Any]:
+    """Raise before packaging or publishing a non-final artifact."""
+
+    evaluated = evaluate_final_release(status)
+    if evaluated.get("final") is not True:
+        codes = [str(item.get("code", "UNKNOWN")) for item in evaluated.get("findings", []) if isinstance(item, Mapping)]
+        detail = ", ".join(codes) or "release gates are incomplete"
+        raise RuntimeError(f"final release is blocked: {detail}")
+    return evaluated
