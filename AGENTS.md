@@ -1,5 +1,14 @@
 # ExamPool — 프로젝트 규칙 (AGENTS.md)
 
+## 사용자 의도 기반 실행 기본값
+
+사용자의 의도와 태스크 범위가 명확한 제작·변환·수정·검증 요청은 확인 질문이나
+계획만 남기고 멈추지 말고, 안전한 범위에서 구현·검증·기록까지 실행한다. “할 수
+있나”, “원해”, “도와줘”도 같은 실행 문맥이면 실행 지시로 본다. 원본 근거 없는
+내용 추측, 파괴적 조작, 권한 밖 변경, 검증 전 FINAL 승격은 금지하며, 불확실한
+부분은 evidence-open/checkpoint로 남기고 가능한 독립 작업을 계속한다. 자세한
+출고 게이트는 `docs/PDF_HWP_SOURCE_FIDELITY_V2_WORK_INSTRUCTIONS.md`를 따른다.
+
 ## HIGH-END 단일 실행 오버라이드
 
 실행 ID `HIGHEND_4SUBJECT_FINAL_20260908_ASTRA_LOW`에만
