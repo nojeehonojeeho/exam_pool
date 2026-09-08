@@ -3,6 +3,7 @@ import argparse
 import ast
 from pathlib import Path
 
+PROTECTED_CONTEXT = '    context = {**context, "unbreakable_phrases": block.get("metadata", {}).get("unbreakable_phrases", context.get("unbreakable_phrases", ()))}\n'
 VALIDATE = '''    from app.hwp_table_merges import apply_native_merges, validated_merges
     merges = block.get("metadata", {}).get("cell_merges", [])
     if merges:
@@ -29,6 +30,7 @@ def patch_source(source):
     lines = source.splitlines(keepends=True)
     body = ''.join(lines[node.lineno - 1:node.end_lineno])
     for anchor, addition, before in [
+        ('    matrix = _matrix(block)\n', PROTECTED_CONTEXT, False),
         ('    rows, cols = len(matrix), len(matrix[0])\n', VALIDATE, False),
         ('    hwp.CloseEx()\n', APPLY, True),
     ]:
@@ -51,7 +53,7 @@ def main():
     source = args.writer.read_text(encoding='utf-8')
     result = patch_source(source)
     if args.apply and result != source:
-        backup = args.writer.with_suffix(args.writer.suffix + '.pre-table-merges')
+        backup = args.writer.with_suffix(args.writer.suffix + '.pre-table-merges-protected-context')
         if backup.exists():
             raise FileExistsError(backup)
         backup.write_bytes(args.writer.read_bytes())
