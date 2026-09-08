@@ -90,6 +90,12 @@ def _one_document(root: Path, label: str) -> dict[str, object]:
     before_pids = _hwp_pids()
     pid_statuses = [_hwp_pid_snapshot()]
     approval_before_snapshot = _approval_window_snapshot()
+    if approval_before_snapshot.get("status") != "OK":
+        raise RuntimeError("WINDOW_ENUMERATION_UNAVAILABLE")
+    if approval_before_snapshot.get("titles"):
+        raise RuntimeError("HWP_APPROVAL_WINDOW_DETECTED_BEFORE_START")
+    if any(snapshot.get("status") != "OK" for snapshot in pid_statuses):
+        raise RuntimeError("HWP_PID_ENUMERATION_UNAVAILABLE")
     hwp = create_secure_hwp(new=True, visible=False, on_quit=False)
     activation_returns = [getattr(getattr(hwp, "_hwp_security_registration", None), "returned", None)]
     created_pids = _hwp_pids() - before_pids
@@ -101,6 +107,8 @@ def _one_document(root: Path, label: str) -> dict[str, object]:
         "pdf": stem.with_suffix(".pdf"),
     }
     try:
+        if activation_returns != [True]:
+            raise RuntimeError("HWP_SECURITY_MODULE_NOT_ACTIVE")
         if not hwp.insert_text(f"HWP security serial probe: {label}"):
             raise RuntimeError("insert_text returned False")
         for fmt, path in files.items():
@@ -108,6 +116,9 @@ def _one_document(root: Path, label: str) -> dict[str, object]:
                 raise RuntimeError(f"save_as returned False: {fmt}")
         _quit(hwp)
         hwp = None
+        initial_alive, initial_wait = _wait_for_new_pids_to_exit(created_pids)
+        if initial_alive or initial_wait != "OK":
+            raise RuntimeError("HWP_INITIAL_PROCESS_NOT_EXITED: reopen not started")
         reopened = create_secure_hwp(new=True, visible=False, on_quit=False)
         created_pids |= _hwp_pids() - before_pids
         pid_statuses.append(_hwp_pid_snapshot())
@@ -115,6 +126,8 @@ def _one_document(root: Path, label: str) -> dict[str, object]:
             getattr(getattr(reopened, "_hwp_security_registration", None), "returned", None)
         )
         try:
+            if activation_returns[-1] is not True:
+                raise RuntimeError("HWP_SECURITY_MODULE_NOT_ACTIVE")
             if not reopened.open(str(files["hwp"]), format="HWP", arg="forceopen:true;suspendpassword:true"):
                 raise RuntimeError("HWP reopen returned False")
             if not reopened.open(str(files["hwpx"]), format="HWPX", arg="forceopen:true;suspendpassword:true"):
@@ -175,10 +188,13 @@ def main() -> int:
         if any(not row.get("pid_enumeration_ok", False) for row in documents):
             report["failure_code"] = "HWP_PID_ENUMERATION_UNAVAILABLE"
             raise RuntimeError("HWP PID enumeration unavailable")
+        if any(row.get("register_module_return_values") != [True, True] for row in documents):
+            report["failure_code"] = "HWP_SECURITY_MODULE_NOT_ACTIVE"
+            raise RuntimeError("RegisterModule must actually return True in both sessions")
         all_windows = [
             title
             for row in documents
-            for title in row.get("approval_windows_after", [])  # type: ignore[union-attr]
+            for title in [*row.get("approval_windows_before", []), *row.get("approval_windows_after", [])]  # type: ignore[union-attr]
         ]
         report["approval_window_count"] = len(all_windows)
         if len(documents) != 2 or report["approval_window_count"] != 0:

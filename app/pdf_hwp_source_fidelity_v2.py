@@ -249,6 +249,7 @@ _COMMON_FIELDS = frozenset({
     "representation", "semantic_content", "grid", "contains_text", "headers",
     "column_ratio", "cell_left_mm", "cell_right_mm", "cell_top_mm", "cell_bottom_mm",
     "after_pt", "before_pt", "size_pt", "align", "content_role", "solution_role",
+    "keep_with_next", "keep_lines",
 })
 _NESTED_TEXT_FIELDS = frozenset({"condition_box", "question", "table", "choices"})
 _BLOCK_FIELDS: dict[str, frozenset[str]] = {
@@ -322,6 +323,9 @@ def normalize_content_blocks(
             findings.append({"code": "CONTENT_BLOCK_TYPE_MISSING", "path": pointer})
             return
         findings.extend(_unknown_fields(raw, block_type, pointer))
+        for flag in ("keep_with_next", "keep_lines"):
+            if flag in raw and not isinstance(raw[flag], bool):
+                findings.append({"code": "AUTHORING_FLOW_FLAG_INVALID", "path": _pointer(pointer, flag), "field": flag})
         block_id = _block_id(raw, pointer, block_type)
         value = dict(raw)
         value["type"] = block_type
