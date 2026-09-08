@@ -11,11 +11,76 @@ import zipfile
 from lxml import etree as E
 
 
-def revise_section(data: bytes, corrections: list[dict], *, superscript_endnote: bool = False):
+def _empty_layout_paragraph(node) -> bool:
+    """Deliberately reject spaces, controls, markers and unknown children."""
+    ns = '{http://www.hancom.co.kr/hwpml/2011/paragraph}'
+    if node.tag != ns + 'p' or node.text or node.get('pageBreak', '0') != '0' or node.get('columnBreak', '0') != '0':
+        return False
+    for child in node:
+        if child.tail or child.text:
+            return False
+        if child.tag == ns + 'run':
+            if any(x.tag != ns + 't' or x.text or len(x) or x.tail for x in child):
+                return False
+        elif child.tag == ns + 'linesegarray':
+            if any(x.tag != ns + 'lineseg' or x.text or len(x) or x.tail for x in child):
+                return False
+        else:
+            return False
+    return True
+
+
+def revise_section(data: bytes, corrections: list[dict], *, superscript_endnote: bool = False, cell_tails: list[dict] | None = None, cell_spacers: list[dict] | None = None):
     root = E.fromstring(data)
     equations = root.findall('.//{*}equation')
     seen = set()
     changes = []
+    tail_plans = []
+    tail_seen = set()
+    tables = root.findall('.//{*}tbl')
+    spacer_plans = []
+    spacer_seen = set()
+    for row in cell_spacers or []:
+        ti, ci, pi = row['table_index'], row['cell_index'], row['paragraph_index']
+        if any(type(x) is not int or x < 0 for x in (ti, ci, pi)) or ti >= len(tables) or (ti, ci, pi) in spacer_seen:
+            raise ValueError('INVALID_CELL_SPACER_PLAN')
+        spacer_seen.add((ti, ci, pi))
+        cells = tables[ti].findall('./{*}tr/{*}tc')
+        if ci >= len(cells):
+            raise ValueError('INVALID_CELL_SPACER_PLAN')
+        sub = cells[ci].find('{*}subList')
+        if sub is None or pi >= len(sub) or len(sub) <= 1:
+            raise ValueError('INVALID_CELL_SPACER_PLAN')
+        para = sub[pi]
+        if not _empty_layout_paragraph(para) or para.get('paraPrIDRef') != str(row['expected_para_pr_id']):
+            raise ValueError('CELL_SPACER_CONTENT_OR_STYLE_MISMATCH')
+        spacer_plans.append((sub, para, row))
+    for row in cell_tails or []:
+        ti, ci, count = row['table_index'], row['cell_index'], row['expected_empty_tail_count']
+        if any(type(x) is not int or x < 0 for x in (ti, ci, count)) or count == 0 or ti >= len(tables) or (ti, ci) in tail_seen:
+            raise ValueError('INVALID_CELL_TAIL_PLAN')
+        tail_seen.add((ti, ci))
+        cells = tables[ti].findall('./{*}tr/{*}tc')
+        if ci >= len(cells):
+            raise ValueError('INVALID_CELL_TAIL_PLAN')
+        sub = cells[ci].find('{*}subList')
+        if sub is None:
+            raise ValueError('CELL_SUBLIST_MISSING')
+        tail = []
+        for para in reversed(sub):
+            if not _empty_layout_paragraph(para):
+                break
+            tail.append(para)
+        if len(tail) != count or len(tail) == len(sub):
+            raise ValueError('CELL_EMPTY_TAIL_MISMATCH')
+        if any(para in tail for _, para, _ in spacer_plans):
+            raise ValueError('OVERLAPPING_CELL_SPACER_PLAN')
+        tail_plans.append((sub, tail, row))
+    for sub, _, _ in spacer_plans:
+        removing = {p for s, p, _ in spacer_plans if s is sub}
+        removing.update(p for s, tail, _ in tail_plans if s is sub for p in tail)
+        if len(removing) >= len(sub):
+            raise ValueError('CELL_MUST_RETAIN_CONTENT_PARAGRAPH')
     # Validate the entire plan before mutating any node.
     for row in corrections:
         index = row['index']
@@ -45,6 +110,13 @@ def revise_section(data: bytes, corrections: list[dict], *, superscript_endnote:
             if fmt is None:
                 raise ValueError('ENDNOTE_FORMAT_MISSING')
             fmt.set('supscript', '1')
+    for sub, tail, row in tail_plans:
+        for para in tail:
+            sub.remove(para)
+        changes.append({'kind': 'reviewed_empty_cell_tail', **row})
+    for sub, para, row in spacer_plans:
+        sub.remove(para)
+        changes.append({'kind': 'reviewed_empty_cell_spacer', **row})
     return E.tostring(root, encoding='UTF-8', xml_declaration=True), changes
 
 
@@ -65,7 +137,7 @@ def revise_package(source: Path, target: Path, plan: dict) -> dict:
             if not name.startswith('Contents/section') or not name.endswith('.xml') or name not in members:
                 raise ValueError('INVALID_SECTION_PLAN')
             members[name], applied[name] = revise_section(members[name], spec.get('equations', []),
-                superscript_endnote=spec.get('superscript_endnote', False))
+                superscript_endnote=spec.get('superscript_endnote', False), cell_tails=spec.get('cell_tails'), cell_spacers=spec.get('cell_spacers'))
         # Exclusive create: never overwrite a candidate or source on a race.
         with zipfile.ZipFile(target, 'x') as zout:
             for info in infos:
