@@ -42,3 +42,19 @@ def test_prose_supplement_before_formula_remains_with_its_explanation():
 def test_explicit_case_heading_is_not_left_at_page_bottom():
     result=bind_solution_flow([{"type":"text","role":"case_heading","text":"(i) 조건"},{"type":"text","text":"설명"}])
     assert result[0]["keep_with_next"] is True
+
+
+def test_explicit_figure_reference_remains_with_its_picture():
+    blocks=[{"type":"text","text":"오른쪽 그림을 보자."},
+            {"type":"figure","metadata":{"keep_with_previous":True}}]
+    result=bind_solution_flow(blocks)
+    assert result[0]["keep_with_next"] is True
+    assert 'keep_with_next' not in blocks[0]
+    assert result[1]==blocks[1]
+
+
+def test_figure_without_true_relationship_is_not_implicitly_bound():
+    for flag in (None,False,'false'):
+        result=bind_solution_flow([{"type":"text","text":"독립 문단"},
+                                  {"type":"figure","metadata":{"keep_with_previous":flag}}])
+        assert 'keep_with_next' not in result[0]

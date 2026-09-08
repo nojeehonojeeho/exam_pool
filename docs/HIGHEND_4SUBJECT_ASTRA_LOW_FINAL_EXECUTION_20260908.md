@@ -101,6 +101,9 @@ HARD_BLOCKER로 기록하되 독립적으로 가능한 나머지 작업은 계�
 - 합성 가로·세로 병합 표의 HWP/HWPX 저장, 실제 HWP 재열림, 셀 내용·rowSpan/colSpan 동일성, 300dpi 렌더와 소유 PID 종료가 확인되었다. 이 결과는 표 기능의 제한된 실행 증거이며 전체 교재의 내용·서식 FINAL 증거가 아니다.
 # 추가 실제 제작 경로 점검: 표와 문장 경계
 
+- 해설 문서의 용지 기준 쪽은 해설 PDF의 `source_solution_pages`에서 선택한다. 문제 PDF의 `source_page` 숫자를 해설 PDF에 그대로 적용하지 않는다. `app.hwp_source_page_reference.reference_page`로 역할·페이지 범위를 검증하고, 실제 참조 PDF와 물리적 쪽번호를 실행 증거에 기록한다. 여러 원본 쪽의 스캔 규격 편차는 별도로 측정하며, 한 기준 쪽의 크기만 맞았다는 이유로 전체 원본 기하 일치라고 보고하지 않는다.
+- 설명에서 직접 참조한 그림은 `metadata.keep_with_previous=true`로 관계를 명시하고, 직전 설명 문단에 `keep_with_next`를 적용한다. 내용이나 그림 순서를 바꾸지 않는다. 실제 미주 출력에서도 설명과 그림이 서로 다른 페이지로 분리되지 않았는지 다시 확인한다.
+
 - 미주 복사·이동 시험은 `Copy/Cut=True`만으로 붙여넣기 준비 완료를 추정하지 않는다. 작업 소유 문서에서 Copy/Cut 직전 클립보드 sequence를 기록하고, `app.hwp_native_clipboard.wait_native_payload`로 변경된 sequence와 비어 있지 않은 `Hwp Native` 데이터 준비를 확인한다. 기록은 크기와 SHA-256만 보존한다. 다른 앱의 클립보드 내용을 출력하거나 수정하지 않는다.
 - 준비 확인은 기본 5초, 최대 10초의 제한된 polling으로 수행하며, Windows delayed-render 호출 자체에는 별도 외부 worker watchdog을 유지한다. 준비 실패는 Paste 전에 실패 처리한다. 재시험 성공만으로 첫 실패 원인을 확정하거나 미주 전체 검수 PASS를 선언하지 않는다. 저장된 복사·이동 파일의 미주 내용·번호·수식 순서와 원본 불변성, PID 종료 검사는 그대로 유지한다.
 
