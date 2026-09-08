@@ -1,5 +1,9 @@
 # PDF → 네이티브 HWP/HWPX 원문 충실도 v2 작업지시서
 
+현재 단일 실행 `HIGHEND_4SUBJECT_FINAL_20260908_ASTRA_LOW`는
+[전용 실행 계약](HIGHEND_4SUBJECT_ASTRA_LOW_FINAL_EXECUTION_20260908.md)을 함께 적용한다.
+기존 충실도 게이트와 향후 기본 설정은 완화하거나 변경하지 않는다.
+
 문서 버전: 2.0 · 정책 갱신일: 2026-09-07
 
 ## 1. 적용 범위와 구현 상태

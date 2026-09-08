@@ -1,5 +1,12 @@
 # ExamPool — 프로젝트 규칙 (AGENTS.md)
 
+## HIGH-END 단일 실행 오버라이드
+
+실행 ID `HIGHEND_4SUBJECT_FINAL_20260908_ASTRA_LOW`에만
+`docs/HIGHEND_4SUBJECT_ASTRA_LOW_FINAL_EXECUTION_20260908.md`를 적용한다.
+전역·향후 모델 기본값은 변경하지 않는다. 원문 변환은 창작 문항 규칙보다
+원문 보존 계약을 우선하며, 제작용 하위 에이전트는 사용하지 않는다.
+
 ## 그림(문항 자료 이미지) 규칙 — 절대 준수
 
 문항 그림을 그리는 모든 작업(5E MCP 사용 포함)에서, **그리기 전에 세 문서를 순서대로 읽는다**:

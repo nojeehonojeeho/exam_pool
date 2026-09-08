@@ -1,0 +1,21 @@
+{
+  "schema": "single-run-execution-override-v1",
+  "run_id": "HIGHEND_4SUBJECT_FINAL_20260908_ASTRA_LOW",
+  "applies_to": "current_run_only",
+  "requested_model": "gpt-6-astra",
+  "reasoning_effort": "low",
+  "service_tier": "default",
+  "fast_mode": false,
+  "change_global_settings": false,
+  "automatic_model_fallback": false,
+  "production_subagents": 0,
+  "max_concurrent_heavy_jobs": 1,
+  "preserve_existing_artifacts": true,
+  "intermediate_approval_required": false,
+  "source_review_dpi": 600,
+  "unclear_crop_dpi": 900,
+  "output_visual_min_dpi": 300,
+  "required_gates": ["source_scope", "source_content", "mathir_lineage", "field_consumption", "native_editability", "endnote_linkage", "com_roundtrip", "window_enumeration", "owned_pid_exit", "all_page_visual", "regression", "remote_commit"],
+  "zero_required": ["evidence_open_item_count", "content_mismatch_count", "mathir_mismatch_count", "endnote_damage_count", "unconsumed_fields", "unknown_fields", "duplicate_consumption", "approval_dialog_count", "owned_pid_remaining", "visual_defect_count"],
+  "metadata_is_execution_proof": false
+}

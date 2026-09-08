@@ -1,5 +1,9 @@
 # PDF → HWP/HWPX 출고 상태·FINAL 승격 작업지시서
 
+현재 단일 실행의 추가 계약은
+[HIGH-END 실행 계약](HIGHEND_4SUBJECT_ASTRA_LOW_FINAL_EXECUTION_20260908.md)에 있다.
+정책 설정·정책 테스트·커밋 성공은 실제 문서의 출고 증거를 대신하지 않는다.
+
 문서 버전: 1.0 · 2026-09-08
 
 ## 목적
