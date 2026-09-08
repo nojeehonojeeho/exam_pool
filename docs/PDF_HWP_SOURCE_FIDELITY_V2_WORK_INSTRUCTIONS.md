@@ -345,6 +345,15 @@ source PDF, scope, manifest, crop, compiler, writer 또는 code hash가 바뀌�
 과거 QA를 자동 무효화하고 큐에 되돌린다. 하위 finding status를 수동으로 CLOSED로 바꾸거나
 상위 원인 메모만으로 일괄 종료하는 것은 금지한다.
 
+매 실행 종료 시 `app/v2_execution_report.py` 또는 `tools/v2_execution_report.py`(CLI:
+`python tools/v2_execution_report.py <state-dir> --json report.json --md report.md`)로 분리 지표, legacy v2 재검증, 수식
+root-cause 상위 20개, 페이지·단원별 큐, strict 재실행, 필수 원장 존재를 재생성한다.
+이 보고기는 `291` 같은 과거 scope-minus-legacy 값을 evidence-open으로 대체하지 않고
+closure summary의 실제 `evidence_open_item_count`를 사용한다. strict ledger가 있으면
+raw finding 수를 ledger 행 수와 대조하고, root-cause는 진단용 후보로만 표시한다.
+`FINAL_PASS`는 evidence-open/raw finding/release blocker/blocking item이 모두 0이고
+production build 상태가 PASS일 때만 산출된다.
+
 ### 12.4 수식 provenance gate와 writer 진입 차단
 
 `audit_authoring_items`의 PASS는 writer 입력의 문법·자산 무결성만 의미하며 원본

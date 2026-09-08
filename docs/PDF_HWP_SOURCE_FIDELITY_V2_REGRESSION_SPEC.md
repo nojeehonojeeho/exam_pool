@@ -106,6 +106,17 @@
 `root_cause_id`는 진단용 후보이며 `candidate_only=true`, `resolved=false`를 기본값으로
 한다. 최종 release gate는 raw finding과 evidence-open 문항을 직접 검사한다.
 
+### 실행 보고기 회귀
+
+`tests/test_v2_execution_report.py`는 실행 원장에 대해 다음을 고정한다.
+
+| 케이스 | 기대 결과 |
+|---|---|
+| strict ledger와 closure summary가 함께 있음 | ledger 행 수를 raw finding으로 보고하되 closure의 release blocker는 별도 보존 |
+| legacy `VERIFIED`만 있고 v2 closure가 없음 | legacy pass로 승격하지 않고 v2 evidence-open으로 집계 |
+| `evidence_open_item_count=0`이지만 raw/release blocker가 남음 | `FINAL_PASS` 금지 |
+| 모든 독립 수량과 production build가 PASS | `FINAL_PASS` 허용 |
+
 | RC06 | 기존 subset만 VERIFIED_SUBSET이고 전체 범위가 열려 있음 | subset은 checkpoint로만 기록하고 전체 release PASS로 승격하지 않음 |
 | RC07 | source/manifest/code hash 변경 | 관련 evidence closure와 이전 QA를 무효화하고 재검수 큐에 넣음 |
 | RC08 | 수식 개수는 같지만 순서·소유 문항·표 셀이 다름 | occurrence ID/owner/order 비교에서 FAIL |
