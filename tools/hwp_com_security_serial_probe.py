@@ -16,20 +16,28 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.integrations.hwp_security import create_secure_hwp, security_snapshot
 
 
-def _hwp_pids() -> set[int]:
+def _hwp_pid_snapshot() -> dict[str, object]:
     try:
         import psutil
 
         return {
-            int(proc.pid)
-            for proc in psutil.process_iter(("name",))
-            if str(proc.info.get("name") or "").casefold() == "hwp.exe"
+            "status": "OK",
+            "pids": {
+                int(proc.pid)
+                for proc in psutil.process_iter(("name",))
+                if str(proc.info.get("name") or "").casefold() == "hwp.exe"
+            },
         }
-    except Exception:
-        return set()
+    except Exception as exc:
+        return {"status": "UNAVAILABLE", "pids": set(), "error": repr(exc)}
 
 
-def _approval_windows() -> list[str]:
+def _hwp_pids() -> set[int]:
+    snapshot = _hwp_pid_snapshot()
+    return set(snapshot.get("pids") or ())
+
+
+def _approval_window_snapshot() -> dict[str, object]:
     try:
         import win32gui
 
@@ -43,9 +51,16 @@ def _approval_windows() -> list[str]:
                 titles.append(title)
 
         win32gui.EnumWindows(callback, None)
-        return titles
-    except Exception:
-        return []
+        return {"status": "OK", "titles": titles}
+    except Exception as exc:
+        # A failed window enumeration is not equivalent to zero approval
+        # dialogs.  The caller must keep the run non-PASS in this state.
+        return {"status": "UNAVAILABLE", "titles": [], "error": repr(exc)}
+
+
+def _approval_windows() -> list[str]:
+    snapshot = _approval_window_snapshot()
+    return list(snapshot.get("titles") or ())
 
 
 def _quit(hwp: object) -> None:
@@ -55,22 +70,30 @@ def _quit(hwp: object) -> None:
         pass
 
 
-def _wait_for_new_pids_to_exit(pids: set[int], timeout: float = 20.0) -> set[int]:
+def _wait_for_new_pids_to_exit(pids: set[int], timeout: float = 20.0) -> tuple[set[int], str]:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        alive = _hwp_pids() & pids
+        snapshot = _hwp_pid_snapshot()
+        if snapshot.get("status") != "OK":
+            return set(pids), str(snapshot.get("status"))
+        alive = set(snapshot.get("pids") or ()) & pids
         if not alive:
-            return set()
+            return set(), "OK"
         time.sleep(0.25)
-    return _hwp_pids() & pids
+    snapshot = _hwp_pid_snapshot()
+    if snapshot.get("status") != "OK":
+        return set(pids), str(snapshot.get("status"))
+    return set(snapshot.get("pids") or ()) & pids, "OK"
 
 
 def _one_document(root: Path, label: str) -> dict[str, object]:
     before_pids = _hwp_pids()
-    approval_before = _approval_windows()
+    pid_statuses = [_hwp_pid_snapshot()]
+    approval_before_snapshot = _approval_window_snapshot()
     hwp = create_secure_hwp(new=True, visible=False, on_quit=False)
     activation_returns = [getattr(getattr(hwp, "_hwp_security_registration", None), "returned", None)]
     created_pids = _hwp_pids() - before_pids
+    pid_statuses.append(_hwp_pid_snapshot())
     stem = root / label
     files = {
         "hwp": stem.with_suffix(".hwp"),
@@ -86,6 +109,8 @@ def _one_document(root: Path, label: str) -> dict[str, object]:
         _quit(hwp)
         hwp = None
         reopened = create_secure_hwp(new=True, visible=False, on_quit=False)
+        created_pids |= _hwp_pids() - before_pids
+        pid_statuses.append(_hwp_pid_snapshot())
         activation_returns.append(
             getattr(getattr(reopened, "_hwp_security_registration", None), "returned", None)
         )
@@ -96,14 +121,27 @@ def _one_document(root: Path, label: str) -> dict[str, object]:
                 raise RuntimeError("HWPX reopen returned False")
         finally:
             _quit(reopened)
+        approval_after_snapshot = _approval_window_snapshot()
+        pid_statuses.append(_hwp_pid_snapshot())
+        alive_after_quit, pid_wait_status = _wait_for_new_pids_to_exit(created_pids)
         return {
             "label": label,
             "files": {key: str(value) for key, value in files.items()},
             "exists": {key: value.is_file() for key, value in files.items()},
-            "approval_windows_before": approval_before,
-            "approval_windows_after": _approval_windows(),
+            "approval_windows_before": list(approval_before_snapshot.get("titles") or ()),
+            "approval_windows_after": list(approval_after_snapshot.get("titles") or ()),
+            "approval_window_status_before": approval_before_snapshot.get("status"),
+            "approval_window_status_after": approval_after_snapshot.get("status"),
+            "approval_window_error_before": approval_before_snapshot.get("error"),
+            "approval_window_error_after": approval_after_snapshot.get("error"),
             "new_hwp_pids": sorted(created_pids),
-            "new_hwp_pids_alive_after_quit": sorted(_wait_for_new_pids_to_exit(created_pids)),
+            "new_hwp_pids_alive_after_quit": sorted(alive_after_quit),
+            "pid_wait_status": pid_wait_status,
+            "pid_enumeration_statuses": [snapshot.get("status") for snapshot in pid_statuses],
+            "pid_enumeration_ok": (
+                pid_wait_status == "OK"
+                and all(snapshot.get("status") == "OK" for snapshot in pid_statuses)
+            ),
             "register_module_return_values": activation_returns,
         }
     finally:
@@ -131,6 +169,12 @@ def main() -> int:
             raise RuntimeError(str(report["security"].get("register_module_error")))  # type: ignore[union-attr]
         documents = [_one_document(out, "serial-a"), _one_document(out, "serial-b")]
         report["documents"] = documents
+        if any(row.get("approval_window_status_before") != "OK" or row.get("approval_window_status_after") != "OK" for row in documents):
+            report["failure_code"] = "WINDOW_ENUMERATION_UNAVAILABLE"
+            raise RuntimeError("approval window enumeration unavailable")
+        if any(not row.get("pid_enumeration_ok", False) for row in documents):
+            report["failure_code"] = "HWP_PID_ENUMERATION_UNAVAILABLE"
+            raise RuntimeError("HWP PID enumeration unavailable")
         all_windows = [
             title
             for row in documents
