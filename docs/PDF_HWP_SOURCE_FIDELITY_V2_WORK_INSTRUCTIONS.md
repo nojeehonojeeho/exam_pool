@@ -627,3 +627,25 @@ writer는 반환된 그림 증거를 실제 문서의 이미지 원장에 누락
 모의 객체 테스트는 COM·시각·출고 PASS가 아니다.
 
 합성 회귀: `tests/test_hwp_inline_figure.py`.
+
+### 12.14 조건 상자와 정렬 값의 실제 writer 계약
+
+조건 상자는 의미 문단 목록인 `rows` 또는 검토된 `components` 중 하나만 사용한다.
+일반 표의 `cells` 필드를 조건 상자에 넣으면 실제 writer가 읽지 않으므로
+`AUTHORING_UNCONSUMED_CONTENT`로 COM 실행 전에 차단한다. 빈 내용은
+`CONDITION_BOX_CONTENT_REQUIRED`, 두 표현의 동시 사용은
+`AUTHORING_AMBIGUOUS_CONTENT`로 처리한다. 행 목록은 OCR 물리 행이 아니라
+문장·조건 단위이며, writer가 하나의 네이티브 상자 안에 순서대로 넣는지 확인한다.
+
+`align`은 한글 HAlign의 대소문자를 구분하는 정규 값으로 입력한다.
+예를 들어 `Center`와 `center`를 같은 값으로 추정하지 않는다. 지원되지 않는 값은
+`AUTHORING_ALIGN_INVALID`로 사전 차단하고 검토된 서식 개정판에서 명시적으로 수정한다.
+정적 사전검사를 통과했다는 사실만으로 실제 COM 작성 성공을 추정하지 않는다.
+
+실제 작성에서 새 계약 오류가 발견되면 실패한 시도와 정상 종료 증거를 보존한다.
+본문·수식·원본 증거를 바꾸지 않는 스키마/서식 수정은 부모 manifest 해시와 변경 필드를
+기록한 새 개정판에 한정한다. 재시도 전 작업 소유 PID 종료를 확인하고, 영향받은 역할만
+직렬 재제작한 후 미주 전후의 전체 내용 및 저장 수식 순서를 다시 대조한다.
+일반화된 회귀에는 합성 내용만 넣으며 실제 교재 전사는 Git에 포함하지 않는다.
+
+합성 회귀: `tests/test_hwp_authoring_preflight.py`.

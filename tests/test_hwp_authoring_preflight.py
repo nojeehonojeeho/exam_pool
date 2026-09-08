@@ -22,6 +22,40 @@ def test_input_check_does_not_claim_source_fidelity(tmp_path):
     assert result["source_fidelity_proven"] is False
 
 
+def test_condition_box_cells_are_not_silently_accepted(tmp_path):
+    value = item()
+    value['problem_blocks'] = [{'type': 'condition_box', 'cells': [[[{'type': 'text', 'text': 'Synthetic condition'}]]]}]
+    assert {'AUTHORING_UNCONSUMED_CONTENT', 'CONDITION_BOX_CONTENT_REQUIRED'} <= codes(value, tmp_path)
+
+
+def test_condition_box_rows_and_components_follow_writer_contract(tmp_path):
+    value = item()
+    row = [{'type': 'text', 'text': 'Synthetic condition'}]
+    value['problem_blocks'] = [{'type': 'condition_box', 'rows': [row]}]
+    assert not codes(value, tmp_path)
+    value['problem_blocks'] = [{'type': 'condition_box', 'components': row}]
+    assert not codes(value, tmp_path)
+    value['problem_blocks'][0]['rows'] = [row]
+    assert 'AUTHORING_AMBIGUOUS_CONTENT' in codes(value, tmp_path)
+
+
+def test_condition_box_invalid_or_empty_payload_fails_before_com(tmp_path):
+    value = item()
+    for payload in ({}, {'rows': []}, {'components': []}, {'rows': 'wrong'}, {'components': 'wrong'}):
+        value['problem_blocks'] = [{'type': 'condition_box', **payload}]
+        assert 'CONDITION_BOX_CONTENT_REQUIRED' in codes(value, tmp_path)
+
+
+def test_alignment_casing_fails_before_native_halign_call(tmp_path):
+    value = item()
+    for bad in ('center', '', None, 2, 'unsupported'):
+        value['solution_blocks'][0]['align'] = bad
+        assert 'AUTHORING_ALIGN_INVALID' in codes(value, tmp_path)
+    for good in ('Left', 'Center', 'Right', 'Justify', 'Distribute', 'DistributeSpace'):
+        value['solution_blocks'][0]['align'] = good
+        assert 'AUTHORING_ALIGN_INVALID' not in codes(value, tmp_path)
+
+
 def test_verified_label_does_not_bypass_unknown_command(tmp_path):
     value = item()
     value["problem_blocks"][0]["script"] = r"\unsupported{x}"

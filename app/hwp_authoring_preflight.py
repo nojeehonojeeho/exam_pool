@@ -116,6 +116,8 @@ def audit_authoring_items(items: list[dict[str, Any]], *, asset_root: str | Path
             for path, block in walk(item.get(role, []), role):
                 kind = block.get("type", "")
                 context = {"item_id": item_id, "path": path}
+                if 'align' in block and block['align'] not in ('Left', 'Center', 'Right', 'Justify', 'Distribute', 'DistributeSpace'):
+                    findings.append({**context, 'code': 'AUTHORING_ALIGN_INVALID', 'detail': 'Use a canonical, case-sensitive native HAlign value.'})
                 if kind in EQUATION_KINDS and block.get("segments") is not None and (block.get("script") or block.get("source")):
                     findings.append({**context, "code": "AUTHORING_AMBIGUOUS_CONTENT"})
                 if kind in EQUATION_KINDS and "segments" not in block:
@@ -160,6 +162,20 @@ def audit_authoring_items(items: list[dict[str, Any]], *, asset_root: str | Path
                         findings.append({**context, "code": "AUTHORING_UNCONSUMED_CONTENT", "fields": ignored})
                     if "figure" in str(block.get("role", "")) or text.startswith(("그림:", "〔도식", "〔도형")):
                         findings.append({**context, "code": "FIGURE_DESCRIPTION_REPLACEMENT", "detail": "Figure data hidden in a text block is not a drawn figure."})
+                if kind == "condition_box":
+                    # The native writer consumes semantic rows, or a component
+                    # wrapper. A table-style cells field is never consumed.
+                    if "cells" in block:
+                        findings.append({**context, "code": "AUTHORING_UNCONSUMED_CONTENT", "fields": ["cells"]})
+                    rows, components = block.get("rows"), block.get("components")
+                    if rows and components:
+                        findings.append({**context, "code": "AUTHORING_AMBIGUOUS_CONTENT"})
+                    if not ((isinstance(rows, list) and rows) or (isinstance(components, list) and components)):
+                        findings.append({**context, "code": "CONDITION_BOX_CONTENT_REQUIRED"})
+                    if rows is not None and not isinstance(rows, list):
+                        findings.append({**context, "code": "CONDITION_BOX_ROWS_INVALID"})
+                    if components is not None and not isinstance(components, list):
+                        findings.append({**context, "code": "CONDITION_BOX_COMPONENTS_INVALID"})
                 if kind in {"choices", "table", "condition_box"}:
                     def check_scalar(value, at):
                         if isinstance(value, list):
