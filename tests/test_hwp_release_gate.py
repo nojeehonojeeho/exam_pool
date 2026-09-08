@@ -15,6 +15,7 @@ from app.hwp_visual_release_qa import validate_visual_report
 
 def passing_status():
     s = new_status(document="x", source_document="s", generated=True, hwp_sha256="h", hwpx_sha256="x")
+    s["evidence_files"] = ["qa.json"]
     for field in GATE_FIELDS:
         s[field] = True
     return s
@@ -65,6 +66,11 @@ def test_visual_finding_blocks():
 
 def test_missing_status_evidence_cannot_promote():
     s = passing_status(); s.pop("hwpx_sha256")
+    assert not can_promote_final(s)
+
+
+def test_missing_evidence_file_list_cannot_promote():
+    s = passing_status(); s["evidence_files"] = []
     assert not can_promote_final(s)
 
 

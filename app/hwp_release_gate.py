@@ -114,6 +114,13 @@ def evaluate_release(status: Mapping[str, Any]) -> dict[str, Any]:
 
     result = dict(status)
     findings = list(result.get("findings") or [])
+    evidence_files = result.get("evidence_files")
+    if not isinstance(evidence_files, (list, tuple)) or not evidence_files:
+        findings.append({
+            "code": "EVIDENCE_FILES_MISSING",
+            "blocking": True,
+            "detail": "a release status must name its verification evidence files",
+        })
     placeholder = _contains_placeholder(result)
     if placeholder and not any(f.get("code") == "PLACEHOLDER_CONTENT" for f in findings if isinstance(f, Mapping)):
         findings.append({"code": "PLACEHOLDER_CONTENT", "token": placeholder})
