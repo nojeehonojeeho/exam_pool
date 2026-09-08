@@ -152,7 +152,7 @@
 페이지의 기본/변형 번호는 `expand_step_b_variants()`로 각각 생성한다. 또한 후보·검토
 iterable이 generator여도 중복 순회로 closure가 사라지지 않아야 한다.
 
-COM 재열림 회귀는 `RegisterModule=True`, 승인창 열거 성공, 파일 저장·재열림·PDF 출력,
+COM 재열림 회귀(`tools/hwp_com_security_serial_probe.py`)는 `RegisterModule=True`, 승인창 열거 성공, 파일 저장·재열림·PDF 출력,
 최초 및 재열림 Hwp PID 종료가 모두 증거로 남아야 PASS로 인정한다. COM을 생략한
 XML-only 결과는 구조 회귀가 통과해도 `reopen_pass=false` 상태를 유지한다.
 
