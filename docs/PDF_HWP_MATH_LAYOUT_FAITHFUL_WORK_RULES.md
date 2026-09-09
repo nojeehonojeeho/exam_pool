@@ -1,5 +1,8 @@
 # 수학 PDF → 편집형 HWP/HWPX 작업지시서·작업규칙
 
+공통 실행 기본값은 [사용자 의도 기반 실행 기본값](USER_INTENT_EXECUTION_DEFAULT.md)을
+적용한다. layout 요청은 문항 단위 재조판과 배치 QA까지 진행하며 계획만 남기지 않는다.
+
 최신 원문 충실도·필드 소비·배치 모드·출고 계약은
 [v2 작업지시서](PDF_HWP_SOURCE_FIDELITY_V2_WORK_INSTRUCTIONS.md)를 우선 적용한다.
 기존 도구의 단독 PASS는 v2 구현이나 실제 원문 충실도 검증의 완료가 아니다.

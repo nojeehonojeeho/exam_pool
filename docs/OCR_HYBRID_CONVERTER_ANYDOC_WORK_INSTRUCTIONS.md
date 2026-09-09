@@ -1,5 +1,9 @@
 # 수학 PDF OCR·hwp-converter·anydoc 하이브리드 작업지시서
 
+공통 실행 기본값은 [사용자 의도 기반 실행 기본값](USER_INTENT_EXECUTION_DEFAULT.md)을
+적용한다. OCR 후보가 생겨도 원문 검수·writer·QA까지 중단 없이 진행하되, 근거 없는
+내용은 조판하지 않는다.
+
 이 문서는 `hwp-converter-v0.1.1`과 Firecrawl `anydoc`를 기존 수학 PDF→HWP/HWPX
 작업에 추가할 때의 역할·증거·실패 조건을 정한다. PDF 원문과 검수된
 `math-source-manifest-v1`만 수학 내용의 권위이며 OCR 후보를 그대로 조판하지 않는다.

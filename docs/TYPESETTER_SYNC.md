@@ -1,5 +1,8 @@
 # ExamPool 조판 런타임 동기화
 
+조판 동기화 작업은 [사용자 의도 기반 실행 기본값](USER_INTENT_EXECUTION_DEFAULT.md)을
+따른다. 명확한 반영 요청은 실제 동기화·검증까지 실행하고, 원본과 기존 산출물은 보존한다.
+
 ExamPool은 HwpPalette 전체 앱에 의존하지 않고, 검증된 조판 런타임과 시험지 팩만
 `vendor/hwp_typesetter`에 포함한다.
 

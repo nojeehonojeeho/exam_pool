@@ -1,5 +1,8 @@
 # 수학 HWP/HWPX 기준 서식 작업지시서
 
+공통 실행 기본값은 [사용자 의도 기반 실행 기본값](USER_INTENT_EXECUTION_DEFAULT.md)을
+적용한다. 서식 보정 요청은 안전한 범위에서 실제 적용과 검증까지 진행한다.
+
 원문 배치 선택·실제 편집성·최종 승격은
 [원문 충실도 v2](PDF_HWP_SOURCE_FIDELITY_V2_WORK_INSTRUCTIONS.md)를 우선 적용한다.
 v2 문서 반영과 코드 구현 완료를 구분한다. 아래 기본 프로필의 측정 상태는 해당

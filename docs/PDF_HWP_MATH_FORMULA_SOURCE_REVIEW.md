@@ -1,5 +1,8 @@
 # 수학 PDF 수식 원문 검수·MathIR 작업지시서
 
+공통 실행 기본값은 [사용자 의도 기반 실행 기본값](USER_INTENT_EXECUTION_DEFAULT.md)을
+적용한다. 수식 검수 범위가 정해지면 원본 대조·MathIR·증거 기록을 계속 수행한다.
+
 최신 수식 occurrence·연산자 경계·검수 증거·출고 계약은
 [원문 충실도 v2](PDF_HWP_SOURCE_FIDELITY_V2_WORK_INSTRUCTIONS.md)를 함께 적용한다.
 v2 문서 반영만으로 기존 CLI나 실제 builder가 새 요구를 전부 구현했다고 보고하지 않는다.

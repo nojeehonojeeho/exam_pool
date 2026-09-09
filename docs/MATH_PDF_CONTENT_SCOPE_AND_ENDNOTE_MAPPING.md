@@ -1,5 +1,8 @@
 # 수학 PDF 작업 범위·문항 대응·미주 매핑 지시서
 
+공통 실행 기본값은 [사용자 의도 기반 실행 기본값](USER_INTENT_EXECUTION_DEFAULT.md)을
+적용한다. 범위가 명확한 변환·미주 요청은 매핑·검증을 끝까지 수행한다.
+
 원문 충실도·필드 보존·출고 판정은
 [v2 작업지시서](PDF_HWP_SOURCE_FIDELITY_V2_WORK_INSTRUCTIONS.md)를 함께 적용한다.
 v2는 문서 반영 상태이며 기존 CLI의 PASS만으로 전체 구현·최종 PASS를 주장하지 않는다.

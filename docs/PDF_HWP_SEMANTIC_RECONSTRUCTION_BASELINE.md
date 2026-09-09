@@ -1,5 +1,10 @@
 # PDF → HWP semantic reconstruction baseline
 
+The common execution default is defined in
+[USER_INTENT_EXECUTION_DEFAULT.md](USER_INTENT_EXECUTION_DEFAULT.md). Explicit conversion,
+repair, or validation intent is executed through the safe checkpoints rather than stopped
+at a plan-only response.
+
 The [source-fidelity v2 work instructions](PDF_HWP_SOURCE_FIDELITY_V2_WORK_INSTRUCTIONS.md)
 supersede conflicting layout, content-preservation and release rules here.
 The v2 update is documentation/design only: verify implementation and wiring in

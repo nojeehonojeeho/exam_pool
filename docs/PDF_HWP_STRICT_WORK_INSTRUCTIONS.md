@@ -1,5 +1,8 @@
 # PDF → 편집형 HWP/HWPX 엄격 작업지시서
 
+공통 실행 기본값은 [사용자 의도 기반 실행 기본값](USER_INTENT_EXECUTION_DEFAULT.md)을
+적용한다. 명확한 제작 요청은 엄격 게이트를 통과시키는 실제 작업까지 이어간다.
+
 최신 원문 충실도·내용 필드 보존·배치 선택·출고 계약은
 [v2 작업지시서](PDF_HWP_SOURCE_FIDELITY_V2_WORK_INSTRUCTIONS.md)를 우선 적용한다.
 [v2 회귀 명세](PDF_HWP_SOURCE_FIDELITY_V2_REGRESSION_SPEC.md)는 다음 구현의 검증 요구다.

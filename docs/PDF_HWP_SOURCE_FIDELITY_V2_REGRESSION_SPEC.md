@@ -1,5 +1,8 @@
 # 원문 충실도 v2 합성 회귀 검증 명세
 
+공통 실행 기본값은 [사용자 의도 기반 실행 기본값](USER_INTENT_EXECUTION_DEFAULT.md)을
+적용한다. 회귀 검증 요청이 명확하면 계획만 남기지 않고 안전한 테스트·기록까지 수행한다.
+
 상태: **설계 명세 반영. 아래 항목의 테스트 구현·실행 완료를 뜻하지 않는다.**
 적용 계약: [원문 충실도 v2 작업지시서](PDF_HWP_SOURCE_FIDELITY_V2_WORK_INSTRUCTIONS.md).
 기존 테스트는 유지하고 다음 구현 요청에서 미지원 항목을 보강한다. 아래 식별자는
@@ -183,3 +186,5 @@ XML-only 결과는 구조 회귀가 통과해도 `reopen_pass=false` 상태를 �
 `evidence-closure-summary.json`, `formula-occurrence-ledger.jsonl`,
 `problem-solution-linkage.json`, `work-queue.json`, `build-and-qa.json`,
 `EXECUTION_STATUS.md`가 있어야 하며, 각 산출물은 입력·manifest·코드 hash를 기록한다.
+공통 실행 기본값은 [사용자 의도 기반 실행 기본값](USER_INTENT_EXECUTION_DEFAULT.md)을
+적용한다. 회귀 검증 요청이 명확하면 계획만 남기지 않고 안전한 테스트·기록까지 수행한다.
