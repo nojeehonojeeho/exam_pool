@@ -28,6 +28,8 @@ EBS_ITEMS = (
 
 
 def test_real_sources_derive_facts_that_route_to_all_three_kinds(tmp_path: Path) -> None:
+    if not KICE.is_file() or not EBS.is_file():
+        pytest.skip("optional local KICE/EBS fixtures are not present")
     raster = normalize_source(RASTER, tmp_path)
 
     routes = (
@@ -62,6 +64,8 @@ def test_normalize_image_preserves_original_and_exposes_cleanup(
 
 
 def test_normalize_pdf_is_non_temporary_passthrough(tmp_path: Path) -> None:
+    if not KICE.is_file():
+        pytest.skip("optional local KICE fixture is not present")
     normalized = normalize_source(KICE, tmp_path)
 
     assert normalized.pipeline_pdf == KICE.resolve()
@@ -147,6 +151,8 @@ def test_normalize_image_replace_failure_preserves_source_and_cleans_temp(
 
 
 def test_real_detection_selects_all_kice_exact_ebs_and_raster(tmp_path: Path) -> None:
+    if not KICE.is_file() or not EBS.is_file():
+        pytest.skip("optional local KICE/EBS fixtures are not present")
     raster = normalize_source(RASTER, tmp_path)
 
     selected = (
