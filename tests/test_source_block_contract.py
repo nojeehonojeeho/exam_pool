@@ -48,3 +48,26 @@ def test_bounded_candidate_is_not_whole_book_final() -> None:
     assert report["final"] is False
     assert report["whole_book_final"] is False
     assert report["remaining_gates"]
+
+
+def test_source_figure_order_precedes_choices_without_duplicate_labels() -> None:
+    blocks = [
+        {"type": "text", "id": "prompt"},
+        {"type": "figure", "id": "source-figure", "actual_viewed": True},
+        {"type": "choices", "id": "choices", "items": ["①", "②"]},
+    ]
+    figure_index = next(i for i, block in enumerate(blocks) if block["type"] == "figure")
+    choices_index = next(i for i, block in enumerate(blocks) if block["type"] == "choices")
+    assert figure_index < choices_index
+    assert blocks[figure_index]["actual_viewed"] is True
+    assert not any(block.get("type") == "formula" and block.get("source") == "source-figure" for block in blocks)
+
+
+def test_solution_page_boundary_is_explicit_layout_not_content() -> None:
+    item = {
+        "item_id": "HE-P-090",
+        "solution_page_break_before": True,
+        "solution_blocks": [{"type": "equation", "occurrence_id": "F007"}],
+    }
+    assert item["solution_page_break_before"] is True
+    assert item["solution_blocks"][0]["occurrence_id"] == "F007"

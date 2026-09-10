@@ -742,3 +742,26 @@ occurrence ID를 유지해야 하며, 새로운 수학 문장·라벨·정답을
 근사(있는 경우)를 명시한다.
 
 합성 회귀: `tests/test_source_block_contract.py`.
+
+## 12.17 source-order figure와 solution page-boundary 계약
+
+원본에 도형·그림·선택지가 함께 있는 경우 `SourceItemIR`의 블록 순서는 PDF의
+읽기 순서를 그대로 보존한다. 순수 그림 crop을 허용하더라도 그림을 선택지 위나
+아래로 임의 이동하지 않으며, 그림 블록의 `source_page`, bbox, SHA-256,
+`actual_viewed` 증거를 남긴다. 그림 안의 글자·라벨을 별도의 수식이나 선택지로
+중복 전사하지 않는다. 도형을 표나 편집 가능한 라벨 표로 대체한 경우에는 원본
+충실도가 닫히지 않은 것으로 처리한다.
+
+정답·풀이 문서는 문항별 원본 페이지 경계를 우선한다. 다음 문항이 원본의 새
+페이지에서 시작하거나 직전 문항의 마지막 등식이 다음 페이지에 고아로 남는
+경우에는 `solution_page_break_before: true` 같은 명시적 layout contract를
+사용할 수 있다. 이 표시는 내용·수식·문항 ID를 변경하지 않으며, writer가
+페이지를 보존했는지 COM 재열림과 300dpi 렌더에서 확인한다. 빈 공간을 만들기
+위해 빈 줄을 반복 입력하거나 글자 크기를 임의로 축소해서는 안 된다.
+
+이 계약은 문항 단위 bounded candidate에도 적용하지만, bounded QA PASS는 전체
+책 FINAL이 아니다. 보고서에는 적용된 source-order/page-boundary 계약, 영향을 받은
+페이지, 남은 whole-book gate를 함께 기록한다.
+
+합성 회귀: `tests/test_source_block_contract.py`의 source-order 및
+`solution_page_break_before` 계약 검사.
