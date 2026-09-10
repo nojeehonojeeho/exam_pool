@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 POLICY = DOCS / "USER_INTENT_EXECUTION_DEFAULT.md"
+AGENTS = ROOT / "AGENTS.md"
 
 
 def _pdf_hwp_execution_docs() -> list[Path]:
@@ -44,3 +45,10 @@ def test_all_pdf_hwp_execution_docs_link_shared_policy() -> None:
 
 def test_policy_names_this_regression_audit() -> None:
     assert "test_user_intent_execution_default.py" in POLICY.read_text(encoding="utf-8")
+
+
+def test_project_rules_point_to_shared_policy() -> None:
+    text = AGENTS.read_text(encoding="utf-8")
+    assert "docs/USER_INTENT_EXECUTION_DEFAULT.md" in text
+    assert "확인 질문이나" in text
+    assert "검증 전 FINAL 승격" in text
