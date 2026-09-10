@@ -447,6 +447,27 @@ closure 결과는 `formula-occurrence-ledger.jsonl`과
 raw finding 원장은 삭제하지 않는다. closure가 PASS가 되더라도 이후 HWPX 저장,
 COM 재열림, 문제-해설 미주 연결, 레이아웃 게이트를 별도로 통과해야 한다.
 
+### 12.6 OCR 수식 후보의 과검출 방지
+
+레거시 OCR 원장이나 표·선지 데이터가 이미 `equation` 타입으로 표시되어 있어도
+그 값을 그대로 native equation으로 승격하지 않는다. 단독 정수·소수·부호가 없는
+상수(예: `6`, `0.5`, `320`)는 원문에서 별도 수식 occurrence라는 증거가 없으면
+일반 text run으로 되돌린다. 표 셀의 숫자, 선택지 숫자, 쪽번호, 단계 번호를 수식으로
+만드는 것은 원문 충실도 오류이므로 `FALSE_FORMULA_NUMERIC_TOKEN`으로 기록한다.
+
+반대로 등식·부등식·분수·근호·연산식·함수·첨자/지수처럼 수학적 구조가 있는 후보만
+수식 occurrence로 유지한다. 후보 승격 뒤에는 `formula_occurrence_id`를 부여하고,
+원본의 동일 문항·순번·source text hash와 연결한다. 단독 상수를 text로 되돌린 뒤
+formula 개수가 줄어드는 것은 누락이 아니라 과검출 제거일 수 있으므로, 이전 원장과
+새 원장의 차이는 `demoted_numeric_equation_count`로 보고하고 raw finding을 삭제하지
+않는다. 이 정책은 writer 이전에 적용하며, HWPX equation 개수만 맞추기 위해 임의로
+수식을 되살리는 우회를 금지한다.
+
+수식 crop 증거는 occurrence ID별로 정확히 1개 이상이어야 한다. 같은 넓은 문항/열
+context crop을 여러 수식이 공유하거나, crop 목록과 현재 occurrence 순서가 어긋난
+상태에서 `VERIFIED`를 부여하지 않는다. source PDF hash·페이지·bbox·DPI·crop hash와
+실제 열람 기록이 모두 같은 occurrence record에 있어야 provenance gate가 닫힌다.
+
 ### 12.7 OCR 행과 의미 문단의 경계
 
 OCR sidecar의 한 행은 물리적인 검출 행일 뿐 문단이 아니다. 작성기는 이를
