@@ -142,7 +142,14 @@ def audit_authoring_items(items: list[dict[str, Any]], *, asset_root: str | Path
                             })
                             continue
                         result = compile_equation(source, dialect=block.get("script_language", ""), operator_policies=block.get("operator_policies"))
-                        equations.append({**context, **result.to_dict()})
+                        # Preserve source-review provenance carried by the
+                        # manifest block; compiler defaults must not overwrite
+                        # source_pdf_verified/MathIR/evidence fields.
+                        equations.append({**result.to_dict(), **context, **{
+                            key: block[key]
+                            for key in ("formula_occurrence_id", "source_pdf_verified", "mathir", "source_evidence", "source_text_sha256")
+                            if key in block
+                        }})
                     except (EquationCompileError, ValueError, TypeError) as exc:
                         findings.append({**context, "code": getattr(exc, "code", "FORMULA_INPUT_INVALID"), "detail": str(exc)})
                 if kind in {"text", "answer", "solution_heading", "step_heading"}:
@@ -203,7 +210,11 @@ def audit_authoring_items(items: list[dict[str, Any]], *, asset_root: str | Path
                     try:
                         script = piecewise_latex_source(block)
                         result = compile_equation(script, dialect="latex", operator_policies=block.get("operator_policies"))
-                        equations.append({**context, **result.to_dict()})
+                        equations.append({**result.to_dict(), **context, **{
+                            key: block[key]
+                            for key in ("formula_occurrence_id", "source_pdf_verified", "mathir", "source_evidence", "source_text_sha256")
+                            if key in block
+                        }})
                     except (EquationCompileError, ValueError, TypeError) as exc:
                         findings.append({**context, "code": "PIECEWISE_NATIVE_REQUIRED", "detail": str(exc)})
         completeness = item.get("solution_completeness", {})
