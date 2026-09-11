@@ -765,3 +765,16 @@ occurrence ID를 유지해야 하며, 새로운 수학 문장·라벨·정답을
 
 합성 회귀: `tests/test_source_block_contract.py`의 source-order 및
 `solution_page_break_before` 계약 검사.
+
+## 12.18 factorial-equality token guard
+
+원본 수식에 팩토리얼 뒤 등호가 붙어 `3!=6`, `4! over 2!=12`처럼 보이는
+경우에는 원본 문자열과 source hash를 그대로 보존하되, 한글 수식 writer에
+넘기는 dialect는 `3! = 6`, `4! over 2! = 12`처럼 등호 앞뒤를 명시적으로
+띄운다. 한글 수식 파서는 인접 토큰 `!=`를 `≠`로 해석하므로, 이를 그대로
+저장·출력하는 것은 단순한 간격 차이가 아니라 원본 내용 오류이다.
+
+컴파일러 정규화는 회귀 테스트로 고정하고, 저장된 HWP/HWPX와 COM 재열림
+결과의 수식 script는 정규화된 dialect와 비교한다. 이때 `source_script`와
+source hash는 변경하지 않으며, 원본 문자열과 출력 dialect의 차이를 원장에
+명시한다.

@@ -1,6 +1,6 @@
 import pytest
 
-from app.hwp_equation_compiler import EquationCompileError, compile_equation, validate_hancom_script
+from app.hwp_equation_compiler import EquationCompileError, compile_equation, normalize_hancom_factorial_equality, validate_hancom_script
 
 
 def compile_tex(value):
@@ -82,6 +82,13 @@ def test_native_validation_does_not_fabricate_mathir():
     assert not result.to_dict()["source_pdf_verified"]
     with pytest.raises(EquationCompileError, match="DIALECT_REQUIRED"):
         compile_equation("x", dialect="auto")
+
+
+def test_factorial_equality_is_spaced_for_hancom_parser():
+    assert normalize_hancom_factorial_equality("3!=6") == "3! = 6"
+    assert normalize_hancom_factorial_equality("4! over 2!=12") == "4! over 2! = 12"
+    result = compile_equation("3!=6", dialect="hancom")
+    assert result.script == "3! = 6"
 
 
 def test_source_operator_exceptions_are_local_and_explicit():

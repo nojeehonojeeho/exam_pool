@@ -18,6 +18,19 @@ from typing import Any
 COMPILER_VERSION = "hwp-equation-compiler-v1"
 
 
+def normalize_hancom_factorial_equality(script: str) -> str:
+    """Disambiguate factorial followed by equality for Hancom's parser.
+
+    Hancom equation input treats the adjacent token ``!=`` as not-equal.  A
+    source formula such as ``3!=6`` means ``3! = 6`` in the supplied math
+    source, so the writer dialect must carry explicit spaces while the raw
+    source string remains unchanged in the manifest and evidence ledger.
+    """
+    if not isinstance(script, str):
+        return script
+    return re.sub(r"!(?:\s*)=(?:\s*)", "! = ", script)
+
+
 class EquationCompileError(ValueError):
     def __init__(self, code: str, message: str, offset: int = 0):
         self.code, self.offset = code, offset
@@ -398,7 +411,8 @@ def compile_equation(source: str, *, dialect: str, operator_policies: dict[int, 
     if not isinstance(source, str) or not source.strip():
         raise EquationCompileError("EMPTY_EQUATION", "equation source is empty")
     if dialect == "hancom":
-        return CompiledEquation(source, dialect, validate_hancom_script(source), None)
+        validated = validate_hancom_script(source)
+        return CompiledEquation(source, dialect, normalize_hancom_factorial_equality(validated), None)
     if dialect != "latex":
         raise EquationCompileError("DIALECT_REQUIRED", "use explicit latex or hancom; auto-detection is unsafe")
     parser = _LatexParser(source)
