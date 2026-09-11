@@ -778,3 +778,21 @@ occurrence ID를 유지해야 하며, 새로운 수학 문장·라벨·정답을
 결과의 수식 script는 정규화된 dialect와 비교한다. 이때 `source_script`와
 source hash는 변경하지 않으며, 원본 문자열과 출력 dialect의 차이를 원장에
 명시한다.
+
+## 12.19 grouped OCR block decomposition
+
+OCR이나 PDF 텍스트 추출이 한 source block 안에 **여러 인쇄 수식과 설명
+문장**을 합쳐 놓았더라도, 그 문자열을 하나의 거대한 native equation으로
+writer에 전달하지 않는다. 600/900dpi 원본 crop에서 확인한 읽기 순서대로
+`text → equation → text → equation` 같은 typed components로 분해하고, 각
+인쇄 수식에 독립적인 `formula_occurrence_id`, MathIR, crop bbox와 SHA-256을
+부여한다. 분해는 문구·숫자·부호를 생략하거나 새로 쓰는 작업이 아니며, 원본
+문장은 editable text, 수식은 native equation으로 각각 보존하는 레이아웃
+복원이다.
+
+분해 후에는 source block 수와 formula occurrence 수를 별도로 집계한다.
+한 덩어리로 저장했던 구형 원장과 새 occurrence 원장의 차이를 보고서에
+기록하고, writer 입력·HWPX equation count·COM 재열림 순서가 새 원장과
+일치할 때만 bounded QA PASS를 부여한다. 한 native equation에 긴 설명을
+넣어 페이지 오른쪽이 잘리는 경우는 자동 FAIL이며, 글자 축소나 빈 줄 반복으로
+우회하지 않는다.
