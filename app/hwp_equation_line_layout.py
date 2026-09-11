@@ -8,6 +8,44 @@ import hashlib
 import re
 from app.hwp_equation_compiler import validate_hancom_script
 
+
+def prepare_reviewed_display_layout(
+    source_script: str,
+    *,
+    expected_sha256: str,
+    writer_script: str,
+    prose_moved_to_text: bool = False,
+) -> dict:
+    """Record a presentation-only writer layout without changing source math.
+
+    Long source blocks may need a reviewed native ``pile``/``eqalign`` writer
+    script.  This helper makes the boundary explicit: the source script/hash
+    remains authoritative, the writer script must be valid Hancom syntax and
+    must not contain Korean prose, and any prose moved to an ordinary text
+    block has to be declared by the caller.  It intentionally does not claim
+    source fidelity or visual/com readback; those remain separate gates.
+    """
+    if hashlib.sha256(source_script.encode()).hexdigest() != expected_sha256:
+        raise ValueError("LINE_LAYOUT_SOURCE_HASH_MISMATCH")
+    if not isinstance(writer_script, str) or not writer_script.strip():
+        raise ValueError("EMPTY_WRITER_LAYOUT")
+    validate_hancom_script(writer_script)
+    source_has_prose = bool(re.search(r"[가-힣]", source_script))
+    if source_has_prose and not prose_moved_to_text:
+        raise ValueError("SOURCE_PROSE_REQUIRES_EXPLICIT_TEXT_BLOCK")
+    if re.search(r"[가-힣]", writer_script):
+        raise ValueError("DISPLAY_EQUATION_PROSE_MIXED")
+    return {
+        "source_script": source_script,
+        "source_script_sha256": expected_sha256,
+        "writer_script": writer_script,
+        "prose_moved_to_text": bool(prose_moved_to_text),
+        "presentation_only": True,
+        "requires_native_readback": True,
+        "requires_visual_qa": True,
+        "final": False,
+    }
+
 def wrap_equality_chain(script: str, *, expected_sha256: str, before_equals: list[int], trailing_punctuation: str = '') -> dict:
     if hashlib.sha256(script.encode()).hexdigest() != expected_sha256:
         raise ValueError('LINE_LAYOUT_SOURCE_HASH_MISMATCH')

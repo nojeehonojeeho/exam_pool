@@ -34,7 +34,10 @@
   바꿀 때만 짧은 질문으로 멈춘다. 그 밖의 미확정 사항은 작업 큐와 증거 원장에
   남기고 독립적으로 진행한다.
 
-모든 세부 작업지시서는 이 문서를 공통 기본값으로 참조한다.
+모든 세부 작업지시서는 이 문서를 공통 기본값으로 참조한다. 긴 풀이식의
+writer-only 줄 나눔, 수식 덩어리에서 설명 문장을 editable text block으로 분리하는
+규칙, 그리고 source hash를 보존한 native readback/visual QA 계약은
+`PDF_HWP_SOURCE_FIDELITY_V2_WORK_INSTRUCTIONS.md` §12.16.1을 모든 작업에 적용한다.
 
 ## 적용 문서 감사 규칙
 

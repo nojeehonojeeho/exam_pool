@@ -7,7 +7,7 @@
 [전용 실행 계약](HIGHEND_4SUBJECT_ASTRA_LOW_FINAL_EXECUTION_20260908.md)을 함께 적용한다.
 기존 충실도 게이트와 향후 기본 설정은 완화하거나 변경하지 않는다.
 
-문서 버전: 2.1 · 정책 갱신일: 2026-09-09
+문서 버전: 2.2 · 정책 갱신일: 2026-09-11
 
 ## 1. 적용 범위와 구현 상태
 
@@ -742,6 +742,32 @@ occurrence ID를 유지해야 하며, 새로운 수학 문장·라벨·정답을
 근사(있는 경우)를 명시한다.
 
 합성 회귀: `tests/test_source_block_contract.py`.
+
+## 12.16.1 사용자 의도 실행과 긴 풀이식의 공통 출고 계약
+
+이 절은 앞으로 요청되는 모든 PDF→HWP/HWPX·네이티브 미주 작업에 공통으로
+적용한다. 사용자가 “할 수 있나”, “원해”, “도와줘”라고 표현하거나 변환·수정·
+반영·완료를 요청하면, 범위가 안전하게 확정된 즉시 읽기→구현→검증→기록→출고를
+계속 수행한다. 계획·능력 확인만 남기고 중단하지 않는다. 다만 원문 근거가 없는
+추측, 파괴적 조작, 승인창 우회, 검증 전 `PASS`/`FINAL` 승격은 금지한다.
+
+긴 풀이식은 다음의 단일 계약으로 처리한다.
+
+1. 원본 수식 문자열·source hash·MathIR·occurrence ID를 정본으로 보존한다.
+2. 600/900dpi crop에서 확인한 등식 경계에 한해 writer용 `pile`/`eqalign` 또는
+   명시적 분수·괄호·위아래첨자 grouping을 추가할 수 있다. 이것은 표시 레이아웃만
+   바꾸는 것이며 원본 수학 토큰·순서·소유 문항을 바꾸지 않는다.
+3. 설명 문장이 수식 OCR 덩어리에 섞여 있으면, 수식 안에 넣지 않고 원본 읽기 순서의
+   일반 editable text block으로 분리한다. 분리 사실·원문 hash·새 text block ID를
+   manifest에 기록한다. 한국어 prose가 native equation script에 남으면 자동 FAIL이다.
+4. writer script는 HWP 수식 문법 검사를 통과해야 하며, 저장 HWPX와 HWP COM
+   재열림의 수식 순서·개수·baseUnit을 대조한다. 긴 식은 300dpi 전 페이지 렌더에서
+   오른쪽 잘림·겹침·고아 줄이 없어야 한다.
+5. 이 계약을 닫은 pair도 `BOUNDED_CANDIDATE_QA_PASS`이며, 전체 source coverage,
+   미주 복사/이동, 전 페이지 시각검사와 book release gate가 닫히기 전에는 FINAL이 아니다.
+
+구현 보조 함수는 `app.hwp_equation_line_layout.prepare_reviewed_display_layout`을
+사용하며, 관련 합성 회귀는 `tests/test_hwp_equation_line_layout.py`에 둔다.
 
 ## 12.17 source-order figure와 solution page-boundary 계약
 
