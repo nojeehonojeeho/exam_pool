@@ -340,6 +340,15 @@ builder를 실행할 때는 `--source-pdf <원본 PDF>`를 전달해 첫 페이�
 남긴다. source PDF가 없으면 해당 산출물은 기하 증거가 없는 legacy 후보로만 보존하며
 최종 PASS를 금지한다.
 
+기존 HWP/HWPX의 페이지 설정을 교정해야 할 때는 원본을 덮어쓰지 않고
+`tools/normalize_hwp_page_geometry.py`를 사용해 새 출력 디렉터리에 직렬 저장한다.
+이 도구는 원본 PDF 전체 MediaBox의 중앙값을 pt→mm로 환산해 모든 section에 적용하고,
+입력·출력 SHA-256과 변경 전후 pageDef를 JSON으로 남긴다. 문제 문서와 통합 미주 문서는
+문제 PDF의 기하를, 정답·풀이 문서는 대응 정답 PDF의 기하를 사용한다. 도구의 성공은
+페이지 기하 교정 증거일 뿐이며, 원본 내용·수식·미주·COM·시각 게이트를 대신하지 않는다.
+페이지 교정 후에는 새 HWP/HWPX를 다시 열어 `PaperWidth`, `PaperHeight`, 방향, 여백을
+확인하고 통합 미주 배치 및 source-fidelity 게이트를 재실행한다.
+
 ### 12.3 진행률 필드와 evidence-open 작업 큐의 엄격한 의미
 
 실행 보고서는 다음 필드를 모두 함께 기록한다.
