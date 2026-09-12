@@ -505,11 +505,30 @@ def main() -> int:
     parser.add_argument("--mode", choices=("copy", "move"), required=True)
     args = parser.parse_args()
     started = time.time()
-    result = probe(args.source_hwp, args.out, mode=args.mode, note_index=args.note_index)
-    result["elapsed_seconds"] = round(time.time() - started, 3)
+    # ``probe`` intentionally fails closed on all preconditions (including a
+    # missing/ambiguous HWP process delta).  Persist that failure as a report:
+    # otherwise the caller sees only the directory created by ``probe`` and
+    # cannot distinguish a guarded abort from a crash or an unstarted run.
     report = args.out / f"{args.mode}-note-{args.note_index + 1:03d}-report.json"
+    args.out.mkdir(parents=True, exist_ok=True)
+    try:
+        result = probe(args.source_hwp, args.out, mode=args.mode, note_index=args.note_index)
+    except Exception as exc:
+        result = {
+            "status": "FAIL",
+            "scope": "bounded_native_endnote_transfer_editor_test",
+            "mode": args.mode,
+            "note_index": args.note_index,
+            "source_hwp": str(args.source_hwp.resolve()),
+            "source_hwpx": str(args.source_hwp.with_suffix(".hwpx").resolve()),
+            "error": {
+                "type": type(exc).__name__,
+                "message": str(exc),
+            },
+        }
+    result["elapsed_seconds"] = round(time.time() - started, 3)
     report.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"status": result["status"], "checks": result["checks"], "report": str(report)}, ensure_ascii=False))
+    print(json.dumps({"status": result["status"], "checks": result.get("checks", {}), "report": str(report)}, ensure_ascii=False))
     return 0 if result["status"] == "PASS" else 2
 
 

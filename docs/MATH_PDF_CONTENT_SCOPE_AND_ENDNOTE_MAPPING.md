@@ -107,6 +107,33 @@ raster에는 허용 사유, SHA-256, 소유 문항, 원본 bbox를 기록한다.
 문제 전용 요청에는 해설을 강제하지 않는다. 여러 문항 공통 자료는 명시적 공유 블록과
 참조 문항을 기록하여 중복 소유나 내용 누락으로 오인하지 않도록 한다.
 
+### 부분 범위와 source 후보 수의 분리
+
+source 후보 manifest와 검수 manifest의 문항 수는 같은 의미가 아닐 수 있다.
+후보가 `items` 배열이면 배열을 기준으로 세고, 후보가 `pages` 배열이면 페이지의
+문항을 먼저 문항 ID로 물질화한 뒤 검수 범위와 대조한다. 특히 Step B처럼 인쇄번호
+하나가 base 문항과 `-1` 변형 문항으로 구성되는 페이지는 `printed_nums`의 개수만
+세면 source 후보를 과소계수한다. `app/pdf_hwp_scope_reconciliation.py`의
+`materialize_candidate_items()`는 이 규칙을 고정하여 page-level `item_count`와
+확장된 후보 수가 일치하는지도 별도 진단한다.
+
+검수 manifest의 `VERIFIED` 표시는 source 후보 전체 검수가 아니다. 다음 세 수를
+항상 별도로 기록한다.
+
+```text
+candidate_item_count       = source 후보 ID의 고유 개수
+reviewed_candidate_count   = 후보에 속하는 검수 manifest ID의 개수
+unreviewed_candidate_count = candidate_item_count - reviewed_candidate_count
+```
+
+`reviewed_candidate_count < candidate_item_count`이면 상태는
+`PARTIAL_SCOPE`이며, 산출물 파일명이 `완료` 또는 `final`을 포함하더라도 full-book으로
+표시하거나 승격하지 않는다. ID가 비연속이어도 부분 범위 판정은 변하지 않는다.
+후보와 검수 ID가 모두 일치하는 `FULL_BOOK_COVERAGE`도 source fidelity, HWP/HWPX
+편집성, COM readback, 미주 품질을 증명하지 않으므로 release PASS와 동일시하지 않는다.
+진단 CLI의 `scope_assessment.full_book_release_eligible`는 항상 false이며 실제 출고는
+별도의 증거 기반 gate에서만 판정한다.
+
 ## 네이티브 미주 계약
 
 미주는 페이지가 아니라 검수된 문항에 삽입한다. 다음 등식이 모두 성립해야 한다.

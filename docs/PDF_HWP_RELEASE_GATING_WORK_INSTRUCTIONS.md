@@ -7,7 +7,7 @@
 [HIGH-END 실행 계약](HIGHEND_4SUBJECT_ASTRA_LOW_FINAL_EXECUTION_20260908.md)에 있다.
 정책 설정·정책 테스트·커밋 성공은 실제 문서의 출고 증거를 대신하지 않는다.
 
-문서 버전: 1.0 · 2026-09-08
+문서 버전: 1.2 · 2026-09-13
 
 ## 목적
 
@@ -47,6 +47,70 @@
 구조 개수·XML 파싱·태그 개수·파일 생성만 통과한 상태는 의미 PASS가 아니다.
 플레이스홀더, 미검수 OCR, 설명문만 있는 그림, 평문/이미지 수식 대체, 가짜 미주는
 자동 FAIL한다. 대표 페이지 검사는 전 페이지 검사를 대체하지 못한다.
+
+## HIGH-END 4과목 독립 출고 게이트
+
+v6 후보 요약의 `status=PASS`, 구조 감사 PASS, 미주 수 `76+50+60+106=292`,
+또는 COM `12/12`만으로 `FINAL`을 부여하지 않는다. 이 숫자들은 후보 패키지의
+관찰값일 수 있으며 전체 원본의 문항·수식·기하 대조가 끝났다는 뜻이 아니다.
+출고 직전에 저장소의 재사용 가능한 독립 게이트를 실행한다.
+
+```text
+python tools/highend_delivery_gate.py <delivery-summary.json> `
+  --scope-root <directory-containing-math_up-math_down-math2-probability> `
+  --com-report <com-dispatchex-report.json> `
+  --json <audit-report.json>
+```
+
+이 명령은 입력 요약·범위 manifest·COM report를 읽기만 하며 HWP/HWPX/PDF/COM
+파일과 registry를 변경하지 않는다. `--json`을 생략하면 보고서를 표준 출력으로
+내보낸다. 독립 판단의 `promotion_allowed=true`일 때만 종료 코드 0이며,
+그 외에는 `BLOCKED`와 차단 finding을 남긴다. 요약에 기록된 `final=true`나
+최상위 `PASS`는 독립 게이트의 근거로 사용하지 않는다.
+
+독립 게이트는 다음을 모두 요구한다.
+
+1. 정확히 `고등수학상`, `고등수학하`, `수학II`, `확률과_통계` 네 과목의 scope
+   manifest가 각각 존재한다.
+2. 각 manifest가 authoritative full-source denominator, 명시적 full-source
+   closed 상태(`FULL_SOURCE_CLOSED`, `FULL_SOURCE_VERIFIED`,
+   `SOURCE_FIDELITY_CLOSED`, `SOURCE_FIDELITY_VERIFIED` 중 하나),
+   `strict_pass=true`, human-review 미해결 없음, 문제·해설 원본
+   PDF의 SHA-256·쪽수 증거를 갖는다. 각 항목은 원본 PDF SHA-256, page, bbox,
+   crop SHA-256, review ID를 갖춘 `evidence_status=CLOSED`여야 하며, 이 조건이
+   없는 `items` 배열·`VERIFIED` 숫자·선택 범위 숫자는 폐쇄 수로 세지 않는다.
+   authoritative denominator가 0보다 크면 item-level records 배열이 반드시
+   존재하고 denominator와 길이가 같아야 한다. generic `CLOSED` status나
+   aggregate closed count만으로는 full-source closure를 주장할 수 없다.
+3. 통합 미주 수는 네 manifest의 닫힌 full-source denominator와 항목별로
+   일치해야 한다. 후보 package의 `endnotes == autonum`이나 `106/106` 같은
+   수치 일치는 source closure를 대신하지 않는다. denominator가 없거나
+   `strict_pass=false`, `REVIEW_REQUIRED`, `OPEN`이면 반드시 차단한다.
+4. COM report는 정확히 12행(과목별 3 role)이고, 각 행에 register/open/save,
+   write/reopen readback, dispatch event, 소유 PID 종료, 승인창 열거 결과,
+   전후 입력 SHA-256 안정성이 있어야 한다. HWP/HWPX 출력 SHA-256은 summary의
+   해당 package 파일과 교차 연결되어야 하며 COM report의 `PASS` 주장만으로
+   통과시키지 않는다.
+
+5. 출고 요약의 `files`는 생략할 수 없다. 비어 있지 않은 배열의 모든 항목에
+   `subject`, `name`, 64자리 `sha256`가 있어야 하며, 네 과목마다 `문제`,
+   `정답및풀이`, `미주작업_완료`의 HWP·HWPX 쌍(총 24개)이 정확히 한 번씩
+   기록되어야 한다. 파일 목록이 없거나 비어 있으면 COM 해시 연결을 검증할
+   수 없으므로 즉시 차단한다. 동일 `(subject, name)` 중복도 차단한다.
+
+6. COM 12행은 과목별로 서로 다른 세 role을 명시해야 한다. 새 report는 각
+   행에 `role`을 기록하고, 레거시 report는 HWP/HWPX 출력 파일명에서 role을
+   모호하지 않게 추론한다. 과목별 role 집합이 정확히
+   `{문제, 정답및풀이, 미주작업_완료}`가 아니면 `COM_ROLE_SET_INVALID`로
+   차단한다. subject만 3행 반복한 report는 세 문서의 재열림을 증명하지
+   못한다.
+
+판정 보고서에는 `source_scope_closed`, `endnote_counts_reconciled`,
+`com_provenance_closed` 게이트와 과목별 `declared_item_count`,
+`evidence_closed_item_count`, `evidence_open_item_count`를 보존한다. 범위가
+부분적이면 후보로 계속 기록하고, source fidelity가 닫힌 새 manifest와 재열림
+증거를 확보한 뒤 같은 명령을 다시 실행한다. 실제 출력물을 FINAL 위치로
+복사하거나 파일명만 바꾸는 행위는 이 독립 판정을 우회하지 못한다.
 
 파이프라인 경계에서는 반드시 `app.pdf_hwp_pipeline_gate.require_final_release`를
 호출한다. 단계 체인이 PASS여도 이 호출의 반환값 `final=true`가 아니면 패키징·공개를
