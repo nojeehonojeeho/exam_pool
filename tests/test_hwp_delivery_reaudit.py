@@ -67,6 +67,22 @@ def test_audit_hwpx_does_not_duplicate_nested_table_text(tmp_path: Path) -> None
     assert result["raw_backslash_text"][0]["text"] == r"정답 \sum"
 
 
+def test_audit_hwpx_rejects_internal_diagnostic_text_leak(tmp_path: Path) -> None:
+    path = tmp_path / "diagnostic.hwpx"
+    section = (
+        '<hp:sec xmlns:hp="urn:test">'
+        '<hp:p><hp:run><hp:t>문항과 무관한 스캔 잔여점으로 semantic 내용 없음.</hp:t>'
+        '<hp:equation font="HYhwpEQ" baseUnit="1100"><hp:script>x</hp:script></hp:equation>'
+        '</hp:run></hp:p></hp:sec>'
+    ).encode("utf-8")
+    with ZipFile(path, "w", ZIP_DEFLATED) as package:
+        package.writestr("Contents/section0.xml", section)
+    result = audit_hwpx(path)
+    assert result["structural_status"] == "FAIL"
+    assert result["internal_diagnostic_text"] == ["문항과 무관한 스캔 잔여점으로 semantic 내용 없음."]
+    assert any(item["code"] == "INTERNAL_DIAGNOSTIC_TEXT_LEAK" for item in result["findings"])
+
+
 def test_audit_delivery_requires_hwp_pair(tmp_path: Path) -> None:
     folder = tmp_path / "subject"
     folder.mkdir()

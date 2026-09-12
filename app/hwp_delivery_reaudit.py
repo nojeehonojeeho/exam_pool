@@ -19,6 +19,12 @@ from zipfile import ZipFile
 
 _SECTION_RE = re.compile(r"Contents/section\d+\.xml$")
 _RAW_BACKSLASH_RE = re.compile(r"(?<!\\)\\[A-Za-z]+")
+# Internal provenance notes are useful in a review ledger but are never user
+# content.  If one reaches a delivered HWPX paragraph, fail the structural
+# gate instead of allowing it to be rendered or copied to a student document.
+_INTERNAL_DIAGNOSTIC_TEXTS = (
+    "문항과 무관한 스캔 잔여점으로 semantic 내용 없음.",
+)
 
 
 def _local(node: ET.Element) -> str:
@@ -68,6 +74,9 @@ def audit_hwpx(path: Path) -> dict[str, Any]:
             for paragraph in paragraphs
         ]
         text = "\n".join(paragraph_texts)
+        internal_diagnostic_text = [
+            token for token in _INTERNAL_DIAGNOSTIC_TEXTS if token in text
+        ]
         raw_backslash_text = [
             {"paragraph_index": index + 1, "text": value}
             for index, value in enumerate(paragraph_texts)
@@ -93,6 +102,7 @@ def audit_hwpx(path: Path) -> dict[str, Any]:
                 # Keep the paragraph index and complete visible text so the
                 # repair queue can identify the exact source occurrence.
                 "raw_backslash_text": raw_backslash_text,
+                "internal_diagnostic_text": internal_diagnostic_text,
                 "sentence_fragment_signals": [
                     token for token in ("만들 수 있", "는 모든", "할 수") if token in text
                 ],
@@ -107,6 +117,13 @@ def audit_hwpx(path: Path) -> dict[str, Any]:
         findings.append({"code": "FORMULA_RAW_BACKSLASH", "count": len(result["raw_backslash_scripts"])})
     if result["raw_backslash_text"]:
         findings.append({"code": "FORMULA_RAW_BACKSLASH_TEXT", "count": len(result["raw_backslash_text"])})
+    if result["internal_diagnostic_text"]:
+        findings.append(
+            {
+                "code": "INTERNAL_DIAGNOSTIC_TEXT_LEAK",
+                "tokens": result["internal_diagnostic_text"],
+            }
+        )
     if result["equations"] and set(result["equation_fonts"]) != {"HYhwpEQ"}:
         findings.append({"code": "EQUATION_FONT_PROFILE_MISMATCH", "fonts": result["equation_fonts"]})
     if result["equations"] and set(result["equation_base_units"]) != {"1100"}:
