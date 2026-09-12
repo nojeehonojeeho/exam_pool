@@ -81,6 +81,24 @@ HARD_BLOCKER로 기록하되 독립적으로 가능한 나머지 작업은 계�
 
 관련 합성 테스트: `test_hwp_solution_flow.py`, `test_highend_writer_flow_patch.py`, `test_hwp_owned_quit.py`, `test_hwp_com_security_serial_probe.py`.
 
+## 통합본 미주 위치 보정 계약 (전 과목 공통)
+
+이번 실행의 통합본은 문제를 복사해 부교재를 재구성할 때 대응 해설을 함께
+따라오게 하는 것이 목적이다. 따라서 주 본문에는 모든 문제를 원본 순서대로
+먼저 배치하고, 정답·풀이·해설 제목·해설 그림은 본문에 복제하지 않는다. 각
+문제에는 native endnote reference 하나를 연결하고, 문서 끝에는 그 순서에 맞는
+정답·해설 body만 둔다. 문제·해설을 단순히 이어 붙인 파일이나 평문 표식은
+통합본으로 인정하지 않는다.
+
+저장 HWPX의 모든 `hp:endNotePr/hp:placement/@place`는
+`END_OF_DOCUMENT`여야 한다. `footNotePr`의 `EACH_COLUMN`은 각주 설정이므로
+오류로 세지 않지만, `endNotePr` 누락·빈 값·문서 끝 이외의 값은
+`ENDNOTE_PLACEMENT_UNDECLARED` 또는 `ENDNOTE_PLACEMENT_INVALID`로 즉시
+실패 처리한다. 한글 재열림·300 dpi 렌더에서 마지막 문제 뒤 미주 영역만
+이어지는지, 임시 복사·이동 시험에서 native 연결이 보존되는지를 확인한다.
+이 배치 게이트는 확률과 통계·수학 II·고등수학(상)·고등수학(하) 및 이후의
+모든 수학 통합본에 동일하게 적용한다.
+
 ## 문장 안 참조 표시와 경우 제목
 
 - 검수 원문에 존재하는 참조 표시만 `metadata.unbreakable_phrases`에 명시한다. `app.hwp_protected_text`는 해당 구문 안의 공백만 실제 `InsertNonBreakingSpace`로 삽입한다. 원문 문장이나 숫자·수식은 다시 쓰지 않는다. `tools/highend_writer_protected_text_patch.py <writer>`로 실제 경로의 적용 상태를 확인한다.

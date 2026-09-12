@@ -822,3 +822,47 @@ writer에 전달하지 않는다. 600/900dpi 원본 crop에서 확인한 읽기 
 일치할 때만 bounded QA PASS를 부여한다. 한 native equation에 긴 설명을
 넣어 페이지 오른쪽이 잘리는 경우는 자동 FAIL이며, 글자 축소나 빈 줄 반복으로
 우회하지 않는다.
+
+### 12.20 통합본의 문제 본문 선행·문서 끝 미주 배치 계약
+
+네이티브 미주 통합본의 목적은 문제를 복사하거나 이동할 때 해당 정답·해설
+연결을 함께 보존하는 것이다. 따라서 **모든 과목과 모든 문항 범위**에 다음
+배치 계약을 적용한다.
+
+1. 통합본의 주 본문은 원본 읽기 순서의 문제만 `1번 → 2번 → … → 마지막
+   문항` 순서로 배치한다. 문제 문서가 사용하는 인쇄 번호(예: `01`, `6-1`)와
+   변형 문항 ID는 원본 그대로 보존하되, 정답·풀이 문단·해설 제목·해설
+   그림을 주 본문에 삽입하지 않는다.
+2. 각 문제에는 해당 문항의 **실제 native endnote reference를 정확히 하나**
+   연결한다. `※`, `[해설]`, 일반 각주 문자, 숨은 텍스트, 복사된 해설 문장을
+   참조 표식으로 대체하지 않는다. 문제 본문과 미주 연결의 occurrence ID,
+   문항 ID, 인쇄 번호, 순서를 manifest에 기록한다.
+3. 각 native endnote body에는 그 문항의 정답 및 해설만 원문 순서대로 둔다.
+   다른 문항의 해설, 중복 문제 본문, 페이지 전체 캡처, 임의로 만든 풀이를
+   섞지 않는다. 미주 body 순서는 문제 reference 순서와 1:1로 일치해야 한다.
+4. HWPX의 저장된 모든 `hp:endNotePr`에는
+   `hp:placement/@place="END_OF_DOCUMENT"`를 명시한다. `footNotePr`의
+   기본값 `EACH_COLUMN`은 별개의 각주 설정이므로 미주 배치의 근거로 사용하지
+   않는다. `endNotePr`가 없거나 `place`가 비어 있거나
+   `EACH_COLUMN`·`EACH_PAGE` 등 다른 값이면
+   `ENDNOTE_PLACEMENT_UNDECLARED` 또는 `ENDNOTE_PLACEMENT_INVALID`로
+   자동 FAIL한다.
+5. 출력 전 QA는 다음 세 가지를 모두 확인한다.
+   - 주 본문에 문제 외 해설 제목·정답/풀이 블록이 누출되지 않았는지
+   - 저장 HWPX의 native endnote 개수·문항 순서·body 내용이 manifest와
+     일치하는지
+   - 한글 재열림·렌더 후 마지막 문제 페이지 다음에 미주 영역만 이어지고,
+     문제와 미주가 페이지/단 중간에서 서로 interleave되지 않는지
+6. 실제 한글에서 문제 하나를 복사·이동하여 native 미주 연결이 유지되는지
+   별도로 시험한다. 평문 표식이 따라오는 것만으로는 통과로 보지 않는다.
+   미주 전·후 파일은 동일한 문제 개정판과 동일한 수식·그림 occurrence에
+   기반해야 한다.
+
+이 계약은 통합본을 만들 때마다 과목별로 적용하며, 한 과목만 통과한 상태를
+전체 과목 완료로 승격하지 않는다. placement·주 본문 누출·문항 순서 중 하나라도
+미검증이면 결과물은 후보/REVIEW_REQUIRED로 유지하고 `FINAL` 또는 출고
+PASS로 표시하지 않는다.
+
+합성 회귀: `tests/test_endnote_qa_gate.py`의
+`test_endnote_placement_must_be_document_end`,
+`test_endnote_placement_must_be_explicit`.

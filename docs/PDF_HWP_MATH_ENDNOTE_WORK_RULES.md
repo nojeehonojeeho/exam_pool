@@ -32,6 +32,24 @@
 - 미주 삽입 후에도 선택된 layout mode의 단·보기·그림 상대 순서를 유지한다. 모든 문서에
   2단을 강제하지 않는다. 전후 문제 내용과 해설 미주 내용을 독립 snapshot으로 대조한다.
 
+### 3.1 통합본의 본문 선행·문서 끝 미주 계약
+
+통합본은 주 본문에 문제 1번부터 마지막 문항까지를 원본 순서로 먼저 배치하고,
+그 뒤 문서 끝에 정답·해설 미주만 렌더하는 구조여야 한다. 주 본문에 해설 제목,
+정답·풀이 문단, 해설 그림을 복제하거나 독립 해설본을 단순히 이어 붙이지 않는다.
+문항마다 native endnote reference 하나를 해당 문제에 연결하고, 미주 body는 그
+문항의 정답·해설만 같은 순서로 보존한다.
+
+저장 HWPX에서는 모든 `hp:endNotePr/hp:placement/@place`를
+`END_OF_DOCUMENT`로 명시한다. `footNotePr`의 `EACH_COLUMN`은 각주 설정이므로
+미주 위치를 판정하는 값으로 사용하지 않는다. `endNotePr` 누락·빈 placement·
+`EACH_COLUMN`/`EACH_PAGE` 등 문서 끝 이외의 값은 각각
+`ENDNOTE_PLACEMENT_UNDECLARED` 또는 `ENDNOTE_PLACEMENT_INVALID`로 자동 FAIL한다.
+한글 재열림·렌더에서 마지막 문제 뒤에 미주 영역만 이어지는지, 문제 하나를
+복사·이동할 때 native 연결이 따라오는지를 확인한 뒤에 출고한다. 이 계약은
+확률과 통계·수학 II·고등수학(상)·고등수학(하)을 포함한 모든 과목과 이후 작업에
+동일하게 적용한다.
+
 ## 4. 문항 매핑·검수
 
 1. `MATH_PDF_CONTENT_SCOPE_AND_ENDNOTE_MAPPING.md`의 검수된 scope manifest에서

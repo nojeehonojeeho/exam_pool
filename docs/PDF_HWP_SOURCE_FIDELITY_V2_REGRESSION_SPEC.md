@@ -88,6 +88,7 @@
 | E03 | 미주 삽입 후 문제/해설 체크포인트 내용 변경 → FAIL | 전후 독립 내용 snapshot |
 | E04 | 재열림/복사·이동 시 미주 소실·오연결 → FAIL | 검사용 사본의 실제 COM/편집 시험 |
 | E05 | 일부 체크포인트를 미검수 전체본과 병합해 최종 표시 → FAIL | 전체 범위 및 통합본 재감사 |
+| E06 | 문제 본문과 해설 미주가 섞이거나 문서 끝 이외에 렌더 → FAIL | 문제 본문 선행 + `END_OF_DOCUMENT` native 미주 |
 
 ## 구현 완료 보고 조건
 
@@ -108,6 +109,25 @@
 
 `root_cause_id`는 진단용 후보이며 `candidate_only=true`, `resolved=false`를 기본값으로
 한다. 최종 release gate는 raw finding과 evidence-open 문항을 직접 검사한다.
+
+### 네이티브 미주 문서 끝 배치 회귀
+
+`tests/test_endnote_qa_gate.py`는 HWPX의 `footNotePr`와 `endNotePr`를 구분하여
+검사한다. 유효한 fixture에서는 `hp:endNotePr/hp:placement/@place`가
+`END_OF_DOCUMENT`이고, `EACH_COLUMN` 또는 placement 누락 fixture에서는 각각
+`ENDNOTE_PLACEMENT_INVALID`·`ENDNOTE_PLACEMENT_UNDECLARED`로 실패해야 한다.
+이 단위 회귀는 실제 한글 재열림·렌더·복사/이동 시험의 대체물이 아니며, 실제 통합본
+출고에서는 본문 문제 순서·미주 body 순서·1:1 reference와 COM 결과를 추가로 확인한다.
+
+`tools/audit_integrated_endnote_layout.py`(schema `integrated-endnote-layout-audit-v2`)와
+`tests/test_integrated_endnote_layout.py`는 통합본 후보의 문서 끝 배치 계약을 별도로
+고정한다. 이 감사기는 (a) 문제 본문에 해설 표식이 누출되지 않았는지, (b) 모든 native
+미주 body가 비어 있지 않은지, (c) 미주가 있는 section의 placement 누락과 모든 선언된
+`endNotePr`의 비문서끝 값을 실패시키는지, (d) 네 과목
+`고등수학상·고등수학하·수학II·확률과_통계`가 모두 존재하고 각 HWPX에 HWP 쌍이 있는지를
+검사한다. 입력 경로 오류도 예외를 내보내지 않고 구조화된 FAIL로 반환해야 한다. 이
+감사기는 구조 후보 게이트이며 원본 PDF 대조·COM 재열림·전 페이지 시각검수를 대체하지
+않는다.
 
 ### 실행 보고기 회귀
 

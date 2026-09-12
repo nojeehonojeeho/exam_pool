@@ -12,6 +12,20 @@
 부분은 evidence-open/checkpoint로 남기고 가능한 독립 작업을 계속한다. 자세한
 출고 게이트는 `docs/PDF_HWP_SOURCE_FIDELITY_V2_WORK_INSTRUCTIONS.md`를 따른다.
 
+## 통합본 네이티브 미주 배치 기본값
+
+문제·해설 통합본은 모든 과목에 공통으로 다음 구조를 사용한다. 주 본문에는
+원본 읽기 순서의 문제 1번부터 마지막 문항까지만 두고, 각 문제에 실제 native
+endnote reference를 하나씩 연결한다. 정답·풀이·해설 제목과 해설 그림은 주
+본문에 복제하지 않는다. 각 미주 body에는 대응 문항의 정답·해설만 같은 순서로
+둔다. 저장 HWPX의 `hp:endNotePr/hp:placement/@place`는 반드시
+`END_OF_DOCUMENT`여야 하며, `footNotePr`의 `EACH_COLUMN` 값과 혼동하지
+않는다. 배치 선언 누락·문서 끝 이외의 placement·문항/미주 순서 불일치·평문
+표식 사용은 자동 FAIL이다. 한글 재열림 후 마지막 문제 다음에 미주 영역만
+이어지는지와 문제 복사·이동 시 native 연결이 따라오는지를 출고 전에 확인한다.
+세부 게이트와 회귀 테스트는 `docs/PDF_HWP_SOURCE_FIDELITY_V2_WORK_INSTRUCTIONS.md`
+12.20 및 `tests/test_endnote_qa_gate.py`를 정본으로 사용한다.
+
 ## HIGH-END 단일 실행 오버라이드
 
 실행 ID `HIGHEND_4SUBJECT_FINAL_20260908_ASTRA_LOW`에만

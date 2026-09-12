@@ -27,6 +27,7 @@ import xml.etree.ElementTree as ET
 
 
 REPORT_VERSION = 1
+ENDNOTE_PLACEMENT_REQUIRED = "END_OF_DOCUMENT"
 _ENDNOTE_RE = re.compile(r"<(?P<prefix>[A-Za-z_][\w.-]*:)?endNote(?=[\s>/])")
 _TEXT_RE = re.compile(
     r"<(?P<prefix>[A-Za-z_][\w.-]*:)?t(?:\s[^>]*)?>(?P<text>.*?)</(?P=prefix)t>",
@@ -296,11 +297,40 @@ def _problem_context_after(raw_xml: str, start: int) -> str:
 
 
 def _section_xml_members(zf: zipfile.ZipFile) -> list[str]:
-    return sorted(
+    members = [
         name
         for name in zf.namelist()
         if re.search(r"(?:^|/)section\d+\.xml$", name, flags=re.IGNORECASE)
-    )
+    ]
+
+    def sort_key(name: str) -> tuple[int, str]:
+        match = re.search(r"section(\d+)\.xml$", name, flags=re.IGNORECASE)
+        return (int(match.group(1)) if match else 2**31 - 1, name.lower())
+
+    return sorted(members, key=sort_key)
+
+
+def _endnote_placement_values(root: ET.Element) -> tuple[list[str], bool]:
+    """Return declared native-endnote placement values for one section.
+
+    HWPX also contains ``footNotePr`` whose placement is commonly
+    ``EACH_COLUMN``.  That value is unrelated to native endnotes and must not
+    satisfy (or fail) this gate.  We therefore inspect only ``endNotePr``
+    descendants and keep a separate ``declared`` bit so a missing placement
+    can be reported distinctly from an invalid one.
+    """
+
+    properties = [element for element in root.iter() if _local_name(element.tag) == "endNotePr"]
+    if not properties:
+        return [], False
+    values: list[str] = []
+    for prop in properties:
+        placements = [element for element in prop.iter() if _local_name(element.tag) == "placement"]
+        if not placements:
+            values.append("")
+            continue
+        values.extend(_attr(element, "place").strip().upper() for element in placements)
+    return values, True
 
 
 def _bin_data_entries(zf: zipfile.ZipFile) -> dict[str, dict[str, Any]]:
@@ -787,6 +817,8 @@ def audit_hwpx(hwpx_path: str | Path, manifest_path: str | Path) -> dict[str, An
         section_names = _section_xml_members(zf)
         notes: list[tuple[ET.Element, int | None, str, str]] = []
         all_xml_roots: list[ET.Element] = []
+        section_endnote_placements: dict[str, list[str]] = {}
+        section_endnote_pr_declared: dict[str, bool] = {}
         for section_name in section_names:
             raw_xml = zf.read(section_name).decode("utf-8", errors="replace")
             try:
@@ -795,6 +827,9 @@ def audit_hwpx(hwpx_path: str | Path, manifest_path: str | Path) -> dict[str, An
                 report["findings"].append(_finding("package", "INVALID_SECTION_XML", None, f"{section_name}: {exc}"))
                 continue
             all_xml_roots.append(root)
+            placements, declared = _endnote_placement_values(root)
+            section_endnote_placements[section_name] = placements
+            section_endnote_pr_declared[section_name] = declared
             starts = _raw_note_starts(raw_xml)
             note_elements = [element for element in root.iter() if _local_name(element.tag) == "endNote"]
             if len(starts) != len(note_elements):
@@ -831,6 +866,10 @@ def audit_hwpx(hwpx_path: str | Path, manifest_path: str | Path) -> dict[str, An
                 "hwpx_endnotes": len(notes),
                 "native_endnote_autonum": endnote_autonum,
                 "bin_data_total": len(bins),
+                "endnote_placements": section_endnote_placements,
+                "endnote_numbers": [
+                    _number(_attr(note, "number")) for note, _, _, _ in notes
+                ],
             }
         )
         if len(notes) != len(manifest):
@@ -855,6 +894,81 @@ def audit_hwpx(hwpx_path: str | Path, manifest_path: str | Path) -> dict[str, An
                     actual=endnote_autonum,
                 )
             )
+        actual_note_numbers = [_number(_attr(note, "number")) for note, _, _, _ in notes]
+        expected_note_numbers = list(range(1, len(notes) + 1))
+        if any(number is None for number in actual_note_numbers):
+            report["findings"].append(
+                _finding(
+                    "endnote_order",
+                    "ENDNOTE_NUMBER_MISSING",
+                    None,
+                    "one or more native endnotes has no numeric number attribute",
+                    expected=expected_note_numbers,
+                    actual=actual_note_numbers,
+                )
+            )
+        elif actual_note_numbers != expected_note_numbers:
+            report["findings"].append(
+                _finding(
+                    "endnote_order",
+                    "ENDNOTE_NUMBER_MISMATCH",
+                    None,
+                    "native endnote numbers are not continuous in document order",
+                    expected=expected_note_numbers,
+                    actual=actual_note_numbers,
+                )
+            )
+        # ``endNotePr`` controls where the native endnote bodies are rendered.
+        # A document may legitimately contain a footnote placement of
+        # ``EACH_COLUMN``; only the values nested under ``endNotePr`` are
+        # considered here.  When a manifest expects native endnotes, every
+        # section carrying the package's endnote settings must explicitly use
+        # ``END_OF_DOCUMENT``.  Missing or ambiguous declarations fail closed
+        # instead of allowing a UI/default setting to interleave solution text
+        # with the problem body.
+        if notes:
+            declared_sections = [
+                section_name
+                for section_name, declared in section_endnote_pr_declared.items()
+                if declared
+            ]
+            if not declared_sections:
+                report["findings"].append(
+                    _finding(
+                        "endnote_placement",
+                        "ENDNOTE_PLACEMENT_UNDECLARED",
+                        None,
+                        "native endnote placement is not declared in any section",
+                        expected=ENDNOTE_PLACEMENT_REQUIRED,
+                        actual={},
+                    )
+                )
+            for section_name in declared_sections:
+                values = section_endnote_placements.get(section_name, [])
+                if not values or any(not value for value in values):
+                    report["findings"].append(
+                        _finding(
+                            "endnote_placement",
+                            "ENDNOTE_PLACEMENT_UNDECLARED",
+                            None,
+                            "native endnote placement has no explicit place value",
+                            section=section_name,
+                            expected=ENDNOTE_PLACEMENT_REQUIRED,
+                            actual=values,
+                        )
+                    )
+                elif any(value != ENDNOTE_PLACEMENT_REQUIRED for value in values):
+                    report["findings"].append(
+                        _finding(
+                            "endnote_placement",
+                            "ENDNOTE_PLACEMENT_INVALID",
+                            None,
+                            "native endnote placement must render bodies at document end",
+                            section=section_name,
+                            expected=ENDNOTE_PLACEMENT_REQUIRED,
+                            actual=values,
+                        )
+                    )
         for index, (note, anchor, problem_context, section_name) in enumerate(notes):
             if index >= len(manifest):
                 report["findings"].append(

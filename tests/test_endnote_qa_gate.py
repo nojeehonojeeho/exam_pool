@@ -14,10 +14,22 @@ HP = "http://www.hancom.co.kr/schema/2011/hpf"
 HC = "http://www.hancom.co.kr/schema/2011/hcf"
 
 
-def _fixture_hwpx(tmp_path: Path, notes: list[dict], *, missing_bindata: bool = False) -> Path:
+def _fixture_hwpx(
+    tmp_path: Path,
+    notes: list[dict],
+    *,
+    missing_bindata: bool = False,
+    endnote_placement: str | None = "END_OF_DOCUMENT",
+) -> Path:
     body: list[str] = [
         f'<hs:sec xmlns:hs="urn:synthetic:section" xmlns:hp="{HP}" xmlns:hc="{HC}">'
     ]
+    if endnote_placement is not None:
+        body.append(
+            '<hp:secPr><hp:endNotePr>'
+            f'<hp:placement place="{endnote_placement}" beneathText="0"/>'
+            '</hp:endNotePr></hp:secPr>'
+        )
     for note in notes:
         printed = note["printed"]
         number = note.get("note_number", printed)
@@ -102,6 +114,74 @@ def test_clean_native_endnote_passes(tmp_path: Path) -> None:
     assert result["status"] == "PASS"
     assert result["findings"] == []
     assert result["items"][0]["formula_count"] == 1
+
+
+def test_endnote_placement_must_be_document_end(tmp_path: Path) -> None:
+    result = audit_hwpx(
+        _fixture_hwpx(
+            tmp_path,
+            [{"printed": 1, "text": "정답 4 풀이 완료", "equations": ["x+1"]}],
+            endnote_placement="EACH_COLUMN",
+        ),
+        _manifest(tmp_path, [_base_item()]),
+    )
+    assert result["status"] == "FAIL"
+    assert any(finding["code"] == "ENDNOTE_PLACEMENT_INVALID" for finding in result["findings"])
+
+
+def test_endnote_placement_must_be_explicit(tmp_path: Path) -> None:
+    result = audit_hwpx(
+        _fixture_hwpx(
+            tmp_path,
+            [{"printed": 1, "text": "정답 4 풀이 완료", "equations": ["x+1"]}],
+            endnote_placement=None,
+        ),
+        _manifest(tmp_path, [_base_item()]),
+    )
+    assert result["status"] == "FAIL"
+    assert any(finding["code"] == "ENDNOTE_PLACEMENT_UNDECLARED" for finding in result["findings"])
+
+
+def test_endnote_number_sequence_is_checked_independently(tmp_path: Path) -> None:
+    result = audit_hwpx(
+        _fixture_hwpx(
+            tmp_path,
+            [
+                {"printed": 1, "note_number": 2, "text": "정답 4 풀이 완료", "equations": ["x+1"]},
+                {"printed": 2, "note_number": 1, "text": "정답 5 풀이 완료", "equations": ["y+1"]},
+            ],
+        ),
+        _manifest(
+            tmp_path,
+            [
+                _base_item(item_id="SYNTH-01", printed_num=1),
+                _base_item(item_id="SYNTH-02", printed_num=2),
+            ],
+        ),
+    )
+    assert result["status"] == "FAIL"
+    assert any(finding["code"] == "ENDNOTE_NUMBER_MISMATCH" for finding in result["findings"])
+
+
+def test_endnote_printed_anchor_order_is_checked_against_manifest(tmp_path: Path) -> None:
+    result = audit_hwpx(
+        _fixture_hwpx(
+            tmp_path,
+            [
+                {"printed": 2, "text": "정답 4 풀이 완료", "equations": ["x+1"]},
+                {"printed": 1, "text": "정답 5 풀이 완료", "equations": ["y+1"]},
+            ],
+        ),
+        _manifest(
+            tmp_path,
+            [
+                _base_item(item_id="SYNTH-01", printed_num=1),
+                _base_item(item_id="SYNTH-02", printed_num=2),
+            ],
+        ),
+    )
+    assert result["status"] == "FAIL"
+    assert any(finding["code"] == "ENDNOTE_ITEM_MISMATCH" for finding in result["findings"])
 
 
 def test_endnote_body_image_is_an_independent_failure(tmp_path: Path) -> None:

@@ -118,11 +118,15 @@ raster에는 허용 사유, SHA-256, 소유 문항, 원본 bbox를 기록한다.
 = 실제 미주 본문 수
 ```
 
-각 문제 번호 뒤에 해당 item ID의 미주 하나만 삽입한다. 해설 본문·수식·표·허용된
-그림은 해설 영역의 원문 순서대로 넣는다. `page_round_robin`, 번호만 일치하는 대체,
-해설 페이지 전체 삽입은 즉시 FAIL이다. 네이티브 미주는 `endnote_mode:
-staged_atomic`으로만 실행하며, 미주 전 편집형 HWP/HWPX checkpoint가 `PASS`인 뒤에만
-네이티브 미주 단계를 시작한다.
+통합본의 본문에는 문제 1번부터 마지막 문항까지를 원문 읽기 순서로 먼저 배치한다.
+각 문제 번호 뒤에는 해당 item ID의 네이티브 미주 참조 하나만 둔다. 정답·해설 본문·
+수식·표·허용된 그림은 본문에 재삽입하지 않고 문서 끝의 해당 미주 본문에 원문 순서대로
+둔다. HWPX의 모든 미주 설정은 `endNotePr/placement=END_OF_DOCUMENT`여야 하며,
+`footNotePr/placement=EACH_COLUMN`은 각주 설정일 뿐 이 계약을 만족시키지 않는다.
+`page_round_robin`, 번호만 일치하는 대체, 해설 페이지 전체 삽입, 본문과 미주 본문의
+교차 배치는 즉시 FAIL이다. 네이티브 미주는 `endnote_mode: staged_atomic`으로만
+실행하며, 미주 전 편집형 HWP/HWPX checkpoint가 `PASS`인 뒤에만 네이티브 미주 단계를
+시작한다.
 
 체크포인트 PASS는 원문 대조·작성 필드 보존·실제 편집성·배치를 확인한 해당 범위의
 판정이다. XML/글꼴/개수만 통과한 파일이나 미완료 전체본은 해당하지 않는다.
