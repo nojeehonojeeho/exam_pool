@@ -104,4 +104,3 @@ blocking item, release blocker 또는 문제 본문 누출이 남아 있으면 `
 - [ ] raw finding, root-cause candidate, evidence-open, release blocker를 별도 보고했다.
 - [ ] 구조 검사·HWP/HWPX 재열림·복사/이동·렌더 증거가 모두 같은 source/manifest
   hash에 연결되어 있다.
-
