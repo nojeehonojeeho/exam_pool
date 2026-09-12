@@ -221,6 +221,16 @@ COM 실행은 직렬 잠금 아래에서 `run_id`, 소유 PID, 재열림 PID, �
 작업 소유 PID 종료가 확인된 경우에만 `reopen_pass=true`를 부여하며, XML-only 또는
 `skip-com` 결과는 COM PASS로 승격하지 않는다.
 
+문서별 COM 원장은 세션 시작 전·보안 모듈 등록 직후·Open 직후·각 HWP/HWPX/PDF
+SaveAs 직후·재열림 Open 직후·readback SaveAs 직후에 승인창을 열거하여
+`approval_observations[]`로 보존한다. 각 관찰의 `status=OK`와 빈 `titles[]`가
+모두 확인되고 합집합 `approval_window_count=0`일 때만 해당 문서 행의
+`approval_before/approval_after`를 `OK`로 기록한다. 관찰 지점이 하나라도
+`UNAVAILABLE`이면 그 문서 행은 `INCOMPLETE_APPROVAL_EVIDENCE`로 남기며,
+전역 보안 프로브의 0회 결과를 문서별 0회로 재사용하지 않는다. 배치 출고 원장은
+과목별 문제·정답및풀이·미주작업_완료 12행 모두에 이 필드를 포함해야 하고,
+12행의 모든 관찰이 닫힌 경우에만 `com_provenance_closed=true`로 승격한다.
+
 ## 문항 블록·긴 수식·경계 렌더링 보강 계약
 
 표 셀 안에 문항이 들어 있는 문서에서는 `pageBreak`만 추가해도 한글이 문항의

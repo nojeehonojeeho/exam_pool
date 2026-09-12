@@ -52,6 +52,45 @@ class HwpReadbackError(RuntimeError):
         super().__init__(f"{code}: {message}")
 
 
+def _approval_window_snapshot() -> dict[str, Any]:
+    """Return an explicit snapshot of visible HWP approval dialogs.
+
+    A missing/failed window enumeration is deliberately represented as
+    ``UNAVAILABLE`` rather than being treated as zero dialogs.  This keeps the
+    per-document COM evidence fail-closed: a batch builder can only promote a
+    row when all snapshots are ``OK`` and empty.
+    """
+    try:
+        import win32gui
+
+        titles: list[str] = []
+
+        def callback(hwnd: int, _extra: object) -> None:
+            if not win32gui.IsWindowVisible(hwnd):
+                return
+            title = str(win32gui.GetWindowText(hwnd) or "").strip()
+            lowered = title.casefold()
+            if any(mark in lowered for mark in ("접근 승인", "파일 접근", "file access", "approval")):
+                titles.append(title)
+
+        win32gui.EnumWindows(callback, None)
+        return {"status": "OK", "titles": titles}
+    except Exception as exc:
+        return {"status": "UNAVAILABLE", "titles": [], "error": repr(exc)}
+
+
+def _approval_titles(*snapshots: dict[str, Any]) -> list[str]:
+    """Collect dialog titles from snapshots without duplication."""
+    result: list[str] = []
+    for snapshot in snapshots:
+        if not isinstance(snapshot, dict):
+            continue
+        for title in snapshot.get("titles", []):
+            if isinstance(title, str) and title not in result:
+                result.append(title)
+    return result
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -148,6 +187,7 @@ def _open_tracked_session(
 ) -> tuple[Any, dict[str, Any]]:
     """Create one secure HWP session and require an observed new process."""
     before = _require_hwp_snapshot(snapshot_fn)
+    approval_before = _approval_window_snapshot()
     try:
         hwp = factory(new=True, visible=False, on_quit=False)
     except Exception as exc:
@@ -166,12 +206,16 @@ def _open_tracked_session(
     registration = getattr(getattr(hwp, "_hwp_security_registration", None), "returned", None)
     if registration is not True:
         raise HwpReadbackError("HWP_SECURITY_MODULE_NOT_ACTIVE", "RegisterModule did not return True")
+    approval_after_create = _approval_window_snapshot()
     return hwp, {
         "before_start": before.as_dict(),
         "after_start": after.as_dict(),
         "delta": delta.as_dict(),
         "wait": None,
         "register_module_return": registration,
+        "approval_before": approval_before,
+        "approval_after_create": approval_after_create,
+        "approval_observations": [approval_before, approval_after_create],
     }
 
 
@@ -280,12 +324,16 @@ def run_readback(
     try:
         first_hwp, first_lifecycle = _open_tracked_session(factory=factory, snapshot_fn=snapshot_fn)
         _open_input(first_hwp, source)
+        first_lifecycle["approval_observations"].append(_approval_window_snapshot())
         if paths["output_hwp"]:
             _save_output(first_hwp, paths["output_hwp"], "HWP")  # type: ignore[arg-type]
+            first_lifecycle["approval_observations"].append(_approval_window_snapshot())
         if paths["output_hwpx"]:
             _save_output(first_hwp, paths["output_hwpx"], "HWPX")  # type: ignore[arg-type]
+            first_lifecycle["approval_observations"].append(_approval_window_snapshot())
         if paths["output_pdf"]:
             _save_output(first_hwp, paths["output_pdf"], "PDF")  # type: ignore[arg-type]
+            first_lifecycle["approval_observations"].append(_approval_window_snapshot())
     except HwpReadbackError as exc:
         result["errors"].append({"code": exc.code, "message": str(exc)})
     finally:
@@ -314,8 +362,10 @@ def run_readback(
         try:
             second_hwp, second_lifecycle = _open_tracked_session(factory=factory, snapshot_fn=snapshot_fn)
             _open_input(second_hwp, editable)  # type: ignore[arg-type]
+            second_lifecycle["approval_observations"].append(_approval_window_snapshot())
             if paths["readback_hwpx"]:
                 _save_output(second_hwp, paths["readback_hwpx"], "HWPX")  # type: ignore[arg-type]
+                second_lifecycle["approval_observations"].append(_approval_window_snapshot())
         except HwpReadbackError as exc:
             result["errors"].append({"code": exc.code, "message": str(exc)})
         finally:
@@ -337,6 +387,17 @@ def run_readback(
         value = paths[key]
         if value and value.is_file():
             result["outputs"][key] = {"path": str(value), "sha256": _sha256(value)}
+    observations = [
+        observation
+        for lifecycle in result["lifecycle"]
+        for observation in lifecycle.get("approval_observations", [])
+    ]
+    result["approval_observations"] = observations
+    result["approval_window_count"] = len(_approval_titles(*observations))
+    if any(observation.get("status") != "OK" for observation in observations):
+        result["errors"].append({"code": "HWP_APPROVAL_EVIDENCE_UNAVAILABLE", "message": "approval-window enumeration was unavailable"})
+    if result["approval_window_count"]:
+        result["errors"].append({"code": "HWP_APPROVAL_WINDOW_DETECTED", "message": "an approval window was observed during COM readback"})
     result["status"] = "PASS" if not result["errors"] and len(result["lifecycle"]) == 2 else "FAIL"
     result["input_sha256_after"] = _sha256(source)
     if report:

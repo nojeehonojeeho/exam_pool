@@ -166,6 +166,7 @@
 | RC27 | Step B의 기본 번호만 후보 ID로 생성 | 원본에 `n`·`n-1`이 함께 있으면 두 개의 고유 ID와 별도 해설 대응으로 확장 |
 | RC28 | 레거시 `VERIFIED` 또는 출력 ID 존재를 evidence closure로 승격 | 문항별 PDF hash·페이지·bbox·crop hash·review ID가 있는 `evidence_status=CLOSED`만 closure |
 | RC29 | 승인창 열거 실패를 승인창 0회로 집계 | `WINDOW_ENUMERATION_UNAVAILABLE`로 차단하고 조회 성공 증거 없이는 COM PASS 금지 |
+| RC30 | 전역 보안 프로브의 0회 결과를 문서별 COM 재열림 증거로 재사용 | 문서별 각 Open/SaveAs 관찰을 `approval_observations[]`로 기록하고, 12행 모두 `status=OK`, 빈 `titles[]`, 합집합 `approval_window_count=0`일 때만 `com_provenance_closed=true` |
 | RC30 | 최초 Hwp PID만 종료 확인하고 재열림 PID를 누락 | 생성·재열림·출력 단계의 모든 소유 PID와 단계별 deadline을 기록하고 전부 종료 확인 |
 
 ### 범위·세션 회귀 테스트

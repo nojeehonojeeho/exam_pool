@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -127,3 +128,33 @@ def test_run_readback_fails_closed_when_creation_does_not_produce_new_identity(t
 
     assert result["status"] == "FAIL"
     assert any(error["code"] == "HWP_COM_PROCESS_NOT_OBSERVED" for error in result["errors"])
+
+
+def test_run_readback_does_not_infer_zero_approval_windows_when_enumeration_unavailable(tmp_path: Path) -> None:
+    source_dir = tmp_path / "source"
+    work_dir = tmp_path / "work"
+    source_dir.mkdir()
+    source = source_dir / "paper.hwpx"
+    source.write_bytes(b"source")
+    snapshots = iter(
+        [
+            HwpProcessSnapshot(status="OK"),
+            HwpProcessSnapshot(status="OK", processes=frozenset({HwpProcessIdentity(100, 1.0)})),
+            HwpProcessSnapshot(status="OK", processes=frozenset({HwpProcessIdentity(100, 1.0)})),
+            HwpProcessSnapshot(status="OK"),
+            HwpProcessSnapshot(status="OK", processes=frozenset({HwpProcessIdentity(200, 2.0)})),
+            HwpProcessSnapshot(status="OK", processes=frozenset({HwpProcessIdentity(200, 2.0)})),
+        ]
+    )
+    with patch.object(readback, "_approval_window_snapshot", return_value={"status": "UNAVAILABLE", "titles": []}):
+        result = readback.run_readback(
+            source,
+            output_hwp=work_dir / "paper.hwp",
+            report=work_dir / "report.json",
+            factory=lambda **_kwargs: _FakeHwp(),
+            snapshot_fn=lambda: next(snapshots),
+            wait_fn=lambda tracked, **_kwargs: HwpProcessWait(status="OK", tracked=frozenset(tracked)),
+        )
+    assert result["status"] == "FAIL"
+    assert result["approval_window_count"] == 0
+    assert any(error["code"] == "HWP_APPROVAL_EVIDENCE_UNAVAILABLE" for error in result["errors"])
