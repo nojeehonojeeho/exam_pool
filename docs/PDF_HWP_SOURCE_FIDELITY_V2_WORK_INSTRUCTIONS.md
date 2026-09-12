@@ -186,6 +186,27 @@ PDF에서 eqed 수를 추정하지 않고 동일 occurrence의 보이는 내용�
 - 수식 평문·이미지 fallback, 빈 script, 미지원 명령, 임의 괄호 보완, 불확실 구조는 FAIL이다.
   문법이 유효하고 개수가 같아도 수식이 정확하다는 증거는 아니다.
 
+### 6.1 수식 평문 fallback의 별도 차단
+
+저장된 HWPX의 `hp:equation/hp:script`만 검사해서는 수식이 완전히 네이티브라는
+뜻이 아니다. 같은 문단·run의 `hp:t`에 `\\bar{X}`, `\\sum`, `\\lim`처럼 수식
+명령이나 구조 토큰이 그대로 남아 있으면, 뒤에 정상 equation 개체가 따라와도
+원문 수식이 평문으로 중복·분리된 손상으로 판정한다.
+
+- 모든 section 및 endNote XML에서 **직접 자식 문단의 `hp:t` 텍스트**를 수집하고,
+  중첩 표 조상 때문에 같은 문단이 중복 집계되지 않도록 한다.
+- 수식 명령 후보가 보이는 텍스트는 `FORMULA_RAW_BACKSLASH_TEXT`로 기록하고,
+  문단 번호·전체 표시 텍스트·문서 역할·문항/미주 소유자를 원장에 남긴다.
+- 해당 수식의 원본 PDF crop/MathIR와 출력 equation occurrence를 먼저 대조한다.
+  원문에 있는 인라인 수식이면 평문 조각을 삭제·요약하지 말고 같은 위치에 네이티브
+  equation을 삽입한 새 HWPX/HWP를 만든다. 원문 근거가 없으면 임의로 복원하지
+  않고 `evidence-open`으로 차단한다.
+- raw `hp:t` 검출 1건이라도 `NativeEditability`와 `SourceFidelity`를 FAIL로
+  두며, 수식 개수·글꼴·XML 문법 PASS나 기존 VERIFIED만으로 해제하지 않는다.
+- repair 도구는 입력 HWPX를 보존하고 새 파일로만 출력하며, 목표 span이 정확히
+  한 번일 때만 동작해야 한다. 수리 후 같은 strict audit와 HWP COM 재열림을 다시
+  실행한다.
+
 ## 7. 표·그림과 이미지 감사
 
 그림 설명문·관계 목록·`native_semantic` 표시는 검수 메타데이터일 뿐 실제 그림이 아니다.

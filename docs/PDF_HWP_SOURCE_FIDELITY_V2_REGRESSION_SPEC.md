@@ -53,6 +53,7 @@
 | M10 | AST 중첩 노드 수를 개체 수로 사용/임의 분리·병합 → FAIL | 고정된 occurrence 단위의 연쇄 검사 |
 | M11 | crop hash와 VERIFIED만 있고 실제 대조 내역 없음 → UNVERIFIED | 원본 연결 검수 내역과 불확실성 0 |
 | M12 | 저장 전은 정상, HWP 또는 재열림 script가 변경 → FAIL | HWP/HWPX/COM 전후 script 보존 |
+| M13 | 네이티브 equation 뒤 `hp:t`에 `\\bar`, `\\sum`, `\\lim` 등 수식 명령이 남음 → FAIL (`FORMULA_RAW_BACKSLASH_TEXT`) | 수식 위치에 native equation만 있고 표시 텍스트에는 raw command가 없음 |
 
 ## C. 서식·배치·그림
 
@@ -201,6 +202,15 @@ XML-only 결과는 구조 회귀가 통과해도 `reopen_pass=false` 상태를 �
 | source ID가 있는데 authoring ID가 다른 경우 | `FORMULA_AUTHORING_OCCURRENCE_ID_MISMATCH` + `FORMULA_AUTHORING_LINK_MISSING`, `REVIEW_REQUIRED` |
 | authoring MathIR 또는 dialect가 없음 | `FORMULA_AUTHORING_MATHIR_MISSING` 또는 `FORMULA_AUTHORING_DIALECT_MISSING`, `candidate_only=true` |
 | item-level evidence에만 bbox/crop이 있고 formula record에는 없음 | formula geometry를 닫지 않고 `FORMULA_SOURCE_REVIEW_OPEN` |
+
+### HWPX visible-text formula fallback 회귀
+
+`tests/test_hwp_delivery_reaudit.py::test_audit_hwpx_rejects_raw_backslash_in_visible_text`
+는 native equation과 같은 문단의 `hp:t`에 `\\bar{X}`가 남은 합성 HWPX를
+`FORMULA_RAW_BACKSLASH_TEXT`로 실패시키는지 고정한다. 검사기는 section/endNote의
+직접 문단 텍스트를 한 번만 집계해야 하며, nested table 조상 순회로 같은 finding을
+부풀리지 않는다. 실제 자료에 이 finding이 있으면 repair 후 source crop·MathIR·
+COM 재열림·렌더를 재검증하고, 수리 전 산출물을 최종본으로 승격하지 않는다.
 
 실행 산출물에는 `strict-findings.jsonl`, `root-cause-summary.json`,
 `evidence-closure-summary.json`, `formula-occurrence-ledger.jsonl`,

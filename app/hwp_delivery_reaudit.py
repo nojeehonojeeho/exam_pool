@@ -54,10 +54,25 @@ def audit_hwpx(path: Path) -> dict[str, Any]:
         paragraphs = [node for node in nodes if _local(node) == "p"]
         endnotes = [node for node in nodes if _local(node) == "endNote"]
         scripts = [node.findtext(".//{*}script", "") for node in equations]
-        text = "\n".join(
-            "".join(child.text or "" for child in paragraph.iter() if _local(child) == "t")
+        # Read only runs owned by each paragraph.  Walking ``paragraph.iter()``
+        # would pull text from nested table cells or endnote sub-lists into
+        # the ancestor and report the same visible formula more than once.
+        paragraph_texts = [
+            "".join(
+                child.text or ""
+                for run in paragraph
+                if _local(run) == "run"
+                for child in run
+                if _local(child) == "t"
+            )
             for paragraph in paragraphs
-        )
+        ]
+        text = "\n".join(paragraph_texts)
+        raw_backslash_text = [
+            {"paragraph_index": index + 1, "text": value}
+            for index, value in enumerate(paragraph_texts)
+            if _RAW_BACKSLASH_RE.search(value)
+        ]
         result.update(
             {
                 "sections": len(sections),
@@ -73,6 +88,11 @@ def audit_hwpx(path: Path) -> dict[str, Any]:
                     for index, script in enumerate(scripts)
                     if _RAW_BACKSLASH_RE.search(script)
                 ],
+                # A formula command in hp:t is a lossy plain-text fallback,
+                # even when another native equation follows in the same run.
+                # Keep the paragraph index and complete visible text so the
+                # repair queue can identify the exact source occurrence.
+                "raw_backslash_text": raw_backslash_text,
                 "sentence_fragment_signals": [
                     token for token in ("만들 수 있", "는 모든", "할 수") if token in text
                 ],
@@ -85,6 +105,8 @@ def audit_hwpx(path: Path) -> dict[str, Any]:
         findings.append({"code": "HWPX_SECTION_MISSING"})
     if result["raw_backslash_scripts"]:
         findings.append({"code": "FORMULA_RAW_BACKSLASH", "count": len(result["raw_backslash_scripts"])})
+    if result["raw_backslash_text"]:
+        findings.append({"code": "FORMULA_RAW_BACKSLASH_TEXT", "count": len(result["raw_backslash_text"])})
     if result["equations"] and set(result["equation_fonts"]) != {"HYhwpEQ"}:
         findings.append({"code": "EQUATION_FONT_PROFILE_MISMATCH", "fonts": result["equation_fonts"]})
     if result["equations"] and set(result["equation_base_units"]) != {"1100"}:
@@ -133,4 +155,3 @@ def audit_delivery(root: Path) -> dict[str, Any]:
         "release_status": "NOT_VERIFIED",
         "subjects": subjects,
     }
-
