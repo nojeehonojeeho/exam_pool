@@ -48,6 +48,15 @@ must still execute the following atomic checkpoints in order:
 4. only then insert one native endnote per reviewed item and run the endnote
    reopen/copy-move/render audit.
 
+For an integrated document, the main body contains every reviewed problem exactly once
+in source reading order, with exactly one native endnote reference after each question
+number. Answer/solution content (including solution titles, prose, formulas, tables,
+figures, and supplements) exists only inside its corresponding native endnote body;
+those bodies render at `END_OF_DOCUMENT`, and solution bodies are never interleaved with
+the problem body. In a verification copy, copying a question must add exactly one
+matching native endnote reference/body set, while moving it must preserve that reference,
+body, automatic number, and formulas after save/reopen.
+
 If a checkpoint fails, the runner must keep the last passing checkpoint and
 stop the dependent stage.  It must not silently insert a page capture, plain
 text formula, or incomplete solution into an endnote to make the counts match.

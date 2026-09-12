@@ -873,6 +873,20 @@ writer에 전달하지 않는다. 600/900dpi 원본 crop에서 확인한 읽기 
      문제와 미주가 페이지/단 중간에서 서로 interleave되지 않는지
 6. 실제 한글에서 문제 하나를 복사·이동하여 native 미주 연결이 유지되는지
    별도로 시험한다. 평문 표식이 따라오는 것만으로는 통과로 보지 않는다.
+   복사 시험은 native 미주 수가 정확히 1개 늘고 **선택 문항의 미주 body**가
+   정확히 1회 더 존재하는지, 이동 시험은 미주 body의 multiset·수식 수가
+   보존되는지, 두 시험 모두 자동 번호·`END_OF_DOCUMENT` placement·원본
+   HWP/HWPX hash·저장 HWP 재열림을 확인한다. 한 문항 복사에 문서 전체 수식
+   수가 두 배여야 한다고 검사해서는 안 된다. 기본 도구는
+   `tools/hwp_native_endnote_transfer_probe.py`이며, 이 시험은 확인한 문항
+   범위의 editor-behaviour 근거일 뿐 전체 원문 충실도 PASS가 아니다.
+   COM 선택 범위는 `Ctrl.GetAnchorPos(0)`을 그대로 신뢰하지 않는다. 일부
+   한글 버전에서는 이 위치가 미주 `subList` 안으로 해석되므로, 주 본문
+   top-level 문단을 순회하여 선택 HWPML2X에 정확히 하나의 `hp:endNote`가
+   포함되는 문단을 찾고, 선택 문단의 미주 밖 텍스트·수식과 native reference
+   count를 별도로 기록한다. 선택에 native reference가 0개이거나 2개 이상이면
+   body·수식 delta가 맞더라도 `selected_native_endnote_reference=false`로
+   FAIL 처리한다.
    미주 전·후 파일은 동일한 문제 개정판과 동일한 수식·그림 occurrence에
    기반해야 한다.
 
@@ -884,3 +898,35 @@ PASS로 표시하지 않는다.
 합성 회귀: `tests/test_endnote_qa_gate.py`의
 `test_endnote_placement_must_be_document_end`,
 `test_endnote_placement_must_be_explicit`.
+
+## 12.21 문항 블록 고정·수식 표시 줄바꿈·경계 마스크 증거
+
+문항이 중첩 표 셀 또는 `subList`에 들어 있는 경우 `pageBreak` 속성만으로는 제목과
+조건·보기·선지·독립 수식이 분리되지 않는다. writer는 원본 source reading order로
+문항 블록을 수집하고 마지막 문단을 제외한 각 문단의 `paraPr`에
+`breakSetting/@keepWithNext="1"`을 적용한다. 중첩 문단을 포함하되 미주 anchor가
+있는 해설 경계는 다음 블록으로 넘기지 않는다. 보정은 새 `paraPr` ID를 발급하고
+`paraProperties/@itemCnt`를 실제 개수로 갱신해야 하며, 본문·표 셀·수식·그림·미주
+anchor의 before/after fingerprint가 일치해야 한다. `tools/auto_keep_with_next.py`
+및 `tools/patch_hwp_keep_with_next_blocks.py`는 이 오프라인 보정을 수행하고,
+실제 한글 저장·재열림과 영향 페이지 렌더가 뒤따르지 않으면 COM/visual PASS로
+승격하지 않는다.
+
+긴 native equation은 source occurrence·MathIR·원본 script를 유지한 표시 레이아웃
+변경으로만 줄바꿈한다. 허용된 경계는 최상위 세미콜론·화살표·쉼표·독립 등호·더하기
+등이며, `<=`, `>=`, `!=`, 음수 부호, 괄호 내부 등호는 보호한다. `#` 또는
+`eqalign` 삽입 전후에 token count/order, source hash, formula occurrence ID,
+HWPX equation count와 COM readback count를 1:1 비교한다. 영향 페이지에서 식의
+오른쪽 잘림·겹침·고아 행·문장부호 고립이 발견되면 `VISUAL_EQUATION_WRAP_FAIL`로
+처리하고 출고를 중지한다. `tools/wrap_hwp_equation_scripts.py`의 안전 토큰 검사와
+합성 회귀를 필수로 한다.
+
+300dpi 이상 raster boundary QA는 원시 결과와 검토 결과를 분리한다. 중앙 단 구분선
+또는 페이지 프레임이 안전 영역을 침범하는 것이 원본에서 확인된 경우에만 명시적인
+`ignore_mask`를 사용할 수 있다. 마스크 파일의 절대경로·크기·SHA-256·적용 페이지·
+근거 이미지를 evidence에 남기며, 마스크는 문자·표·수식 spill을 가릴 수 없다. 같은
+페이지를 mask 없이 먼저 실행해 raw finding을 보존하고, mask 적용 후에도 내용 잉크가
+경계 밖이면 FAIL이다. 전 페이지가 이 절차를 통과하고 수동 시각검토까지 닫힌 경우에만
+`visual_pass=true`를 부여한다. 합성 회귀는
+`tests/test_hwp_keep_with_next_blocks.py`, `tests/test_wrap_hwp_equation_scripts.py`,
+`tests/test_raster_boundary_batch_qa.py`에 둔다.

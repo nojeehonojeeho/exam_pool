@@ -7,7 +7,9 @@ explicit and checks the contract used by all four HIGH-END subjects:
 
 * the main-body text is not carrying solution headings;
 * native endnote bodies and ENDNOTE auto-number controls are present; and
-* every section explicitly declares ``END_OF_DOCUMENT`` for endnotes.
+* every native endnote control is attached to a main-story paragraph anchor;
+* declared ``endNotePr`` sections use ``END_OF_DOCUMENT`` for endnotes; and
+  at least one such declaration exists when native endnotes are present.
 
 This is a structural candidate gate.  It does not claim source-PDF fidelity,
 Hanword COM re-open, visual rendering, or copy/move proof; those remain
@@ -41,6 +43,40 @@ def _text(element: ET.Element) -> str:
     return "".join(element.itertext())
 
 
+def _native_reference_anchors(
+    root: ET.Element,
+    parent: dict[ET.Element, ET.Element],
+) -> tuple[list[ET.Element], list[ET.Element]]:
+    """Return endnotes whose controls have an outside-body paragraph anchor.
+
+    HWPX stores a native endnote as ``hp:ctrl/hp:endNote``.  The control must
+    be a descendant of the main-story paragraph that owns the reference; the
+    ``subList`` paragraphs inside the endnote body are not references.  Older
+    structural checks counted only ``hp:endNote`` and could therefore accept a
+    detached body-only package.  Walking the parent chain keeps the check
+    namespace-agnostic and works for anchors nested in table cells as well.
+    """
+
+    notes = [element for element in root.iter() if _local_name(element.tag) == "endNote"]
+    anchored: list[ET.Element] = []
+    for note in notes:
+        current = parent.get(note)
+        anchor_paragraph: ET.Element | None = None
+        while current is not None:
+            local = _local_name(current.tag)
+            if local == "endNote":
+                # A nested endnote body is not a main-story anchor.
+                anchor_paragraph = None
+                break
+            if local == "p":
+                anchor_paragraph = current
+                break
+            current = parent.get(current)
+        if anchor_paragraph is not None:
+            anchored.append(anchor_paragraph)
+    return notes, anchored
+
+
 def _sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
@@ -57,6 +93,41 @@ def _section_members(archive: zipfile.ZipFile) -> list[str]:
         return (int(match.group(1)) if match else 2**31 - 1, name.lower())
 
     return sorted(members, key=sort_key)
+
+
+def _endnote_placement_values(root: ET.Element) -> tuple[list[str], bool]:
+    """Return native-endnote placement values and whether ``endNotePr`` exists.
+
+    ``footNotePr`` is a separate setting and must not participate in this
+    contract.  A declared property without a placement, or a placement with
+    a blank ``place`` attribute, is represented by an empty value so callers
+    can report ``ENDNOTE_PLACEMENT_UNDECLARED`` just like the canonical app
+    gate.
+    """
+
+    properties = [element for element in root.iter() if _local_name(element.tag) == "endNotePr"]
+    if not properties:
+        return [], False
+    values: list[str] = []
+    for property_element in properties:
+        placements = [
+            element
+            for element in property_element.iter()
+            if _local_name(element.tag) == "placement"
+        ]
+        if not placements:
+            values.append("")
+            continue
+        values.extend(
+            next(
+                (value for key, value in element.attrib.items() if _local_name(key) == "place"),
+                "",
+            )
+            .strip()
+            .upper()
+            for element in placements
+        )
+    return values, True
 
 
 def audit_hwpx(path: Path) -> dict[str, object]:
@@ -76,6 +147,7 @@ def audit_hwpx(path: Path) -> dict[str, object]:
                 "endnote_text_chars": 0,
                 "main_solution_marker_count": 0,
                 "empty_endnote_bodies": 0,
+                "native_reference_anchor_count": 0,
             },
             "findings": [{"code": "INVALID_HWPX", "message": str(exc)}],
         }
@@ -89,10 +161,11 @@ def audit_hwpx(path: Path) -> dict[str, object]:
             "endnotes": 0,
             "endnote_autonum": 0,
             "main_text_chars": 0,
-            "endnote_text_chars": 0,
-            "main_solution_marker_count": 0,
-            "empty_endnote_bodies": 0,
-        },
+                "endnote_text_chars": 0,
+                "main_solution_marker_count": 0,
+                "empty_endnote_bodies": 0,
+                "native_reference_anchor_count": 0,
+            },
         "findings": [],
     }
     try:
@@ -114,6 +187,8 @@ def audit_hwpx(path: Path) -> dict[str, object]:
         marker_count = 0
         empty_note_count = 0
         section_reports: list[dict[str, object]] = []
+        section_endnote_placements: dict[str, list[str]] = {}
+        section_endnote_pr_declared: dict[str, bool] = {}
         for member in section_names:
             raw = archive.read(member)
             try:
@@ -133,7 +208,7 @@ def audit_hwpx(path: Path) -> dict[str, object]:
                     current = parent.get(current)
                 return False
 
-            notes = [element for element in root.iter() if _local_name(element.tag) == "endNote"]
+            notes, anchored_notes = _native_reference_anchors(root, parent)
             empty_notes = [note for note in notes if not _text(note).strip()]
             empty_note_count += len(empty_notes)
             auto = [
@@ -143,22 +218,9 @@ def audit_hwpx(path: Path) -> dict[str, object]:
                 and next((value for key, value in element.attrib.items() if _local_name(key) == "numType"), "").upper()
                 == "ENDNOTE"
             ]
-            placements: list[str] = []
-            declared = False
-            for property_element in root.iter():
-                if _local_name(property_element.tag) != "endNotePr":
-                    continue
-                declared = True
-                children = [element for element in property_element.iter() if _local_name(element.tag) == "placement"]
-                if not children:
-                    placements.append("")
-                else:
-                    placements.extend(
-                        next((value for key, value in element.attrib.items() if _local_name(key) == "place"), "")
-                        .strip()
-                        .upper()
-                        for element in children
-                    )
+            placements, declared = _endnote_placement_values(root)
+            section_endnote_placements[member] = placements
+            section_endnote_pr_declared[member] = declared
             main_text_parts: list[str] = []
             note_text_parts: list[str] = []
             for element in root.iter():
@@ -186,6 +248,7 @@ def audit_hwpx(path: Path) -> dict[str, object]:
                     "main_text_chars": len(main_text),
                     "endnote_text_chars": len(note_text),
                     "empty_endnote_bodies": len(empty_notes),
+                    "native_reference_anchor_count": len(anchored_notes),
                     "main_text_sha256": _sha256_text(main_text),
                     "endnote_text_sha256": _sha256_text(note_text),
                     "main_solution_marker_count": len(markers),
@@ -200,33 +263,6 @@ def audit_hwpx(path: Path) -> dict[str, object]:
                         "message": "one or more native endnotes has an empty body",
                     }
                 )
-            if declared and not placements:
-                result["findings"].append(  # type: ignore[union-attr]
-                    {
-                        "code": "ENDNOTE_PLACEMENT_UNDECLARED",
-                        "section": member,
-                        "expected": REQUIRED_PLACEMENT,
-                        "actual": placements,
-                    }
-                )
-            elif declared and any(value != REQUIRED_PLACEMENT for value in placements):
-                result["findings"].append(  # type: ignore[union-attr]
-                    {
-                        "code": "ENDNOTE_PLACEMENT_INVALID",
-                        "section": member,
-                        "expected": REQUIRED_PLACEMENT,
-                        "actual": placements,
-                    }
-                )
-            elif notes and not declared:
-                result["findings"].append(  # type: ignore[union-attr]
-                    {
-                        "code": "ENDNOTE_PLACEMENT_UNDECLARED",
-                        "section": member,
-                        "expected": REQUIRED_PLACEMENT,
-                        "actual": placements,
-                    }
-                )
             if len(notes) != len(auto):
                 result["findings"].append(  # type: ignore[union-attr]
                     {
@@ -234,6 +270,16 @@ def audit_hwpx(path: Path) -> dict[str, object]:
                         "section": member,
                         "expected": len(notes),
                         "actual": len(auto),
+                    }
+                )
+            if len(anchored_notes) != len(notes):
+                result["findings"].append(  # type: ignore[union-attr]
+                    {
+                        "code": "ENDNOTE_REFERENCE_ANCHOR_MISSING",
+                        "section": member,
+                        "expected": len(notes),
+                        "actual": len(anchored_notes),
+                        "message": "one or more native endnote bodies is detached from a main-story anchor paragraph",
                     }
                 )
             if markers:
@@ -244,6 +290,45 @@ def audit_hwpx(path: Path) -> dict[str, object]:
                         "count": len(markers),
                     }
                 )
+        # Match the canonical app gate: placement is relevant only when the
+        # document actually contains native endnotes.  Among those sections,
+        # only sections declaring ``endNotePr`` are checked; a missing
+        # declaration is reported globally only when no section declares it.
+        # This keeps ``footNotePr`` (including EACH_COLUMN) out of the gate.
+        if total_notes:
+            declared_sections = [
+                member
+                for member, declared in section_endnote_pr_declared.items()
+                if declared
+            ]
+            if not declared_sections:
+                result["findings"].append(  # type: ignore[union-attr]
+                    {
+                        "code": "ENDNOTE_PLACEMENT_UNDECLARED",
+                        "expected": REQUIRED_PLACEMENT,
+                        "actual": {},
+                    }
+                )
+            for member in declared_sections:
+                placements = section_endnote_placements[member]
+                if not placements or any(not value for value in placements):
+                    result["findings"].append(  # type: ignore[union-attr]
+                        {
+                            "code": "ENDNOTE_PLACEMENT_UNDECLARED",
+                            "section": member,
+                            "expected": REQUIRED_PLACEMENT,
+                            "actual": placements,
+                        }
+                    )
+                elif any(value != REQUIRED_PLACEMENT for value in placements):
+                    result["findings"].append(  # type: ignore[union-attr]
+                        {
+                            "code": "ENDNOTE_PLACEMENT_INVALID",
+                            "section": member,
+                            "expected": REQUIRED_PLACEMENT,
+                            "actual": placements,
+                        }
+                    )
         result["sections"] = section_reports
         result["counts"].update(  # type: ignore[union-attr]
             {
@@ -253,6 +338,10 @@ def audit_hwpx(path: Path) -> dict[str, object]:
                 "endnote_text_chars": note_chars,
                 "main_solution_marker_count": marker_count,
                 "empty_endnote_bodies": empty_note_count,
+                "native_reference_anchor_count": sum(
+                    int(section.get("native_reference_anchor_count", 0))
+                    for section in section_reports
+                ),
             }
         )
         if total_notes == 0:

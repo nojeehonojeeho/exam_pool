@@ -70,7 +70,9 @@ def test_missing_hwpx_path_returns_structured_fail(tmp_path: Path) -> None:
     assert report["findings"][0]["code"] == "INVALID_HWPX"
 
 
-def test_invalid_placement_in_section_without_notes_is_not_ignored(tmp_path: Path) -> None:
+def test_invalid_placement_in_section_without_notes_is_checked_when_document_has_notes(
+    tmp_path: Path,
+) -> None:
     path = _write_hwpx(
         tmp_path / "mixed.hwpx",
         {
@@ -83,11 +85,82 @@ def test_invalid_placement_in_section_without_notes_is_not_ignored(tmp_path: Pat
     assert any(f["code"] == "ENDNOTE_PLACEMENT_INVALID" for f in report["findings"])
 
 
+def test_placement_without_any_native_endnotes_is_not_evaluated(tmp_path: Path) -> None:
+    path = _write_hwpx(
+        tmp_path / "no-notes.hwpx",
+        {"section0.xml": _section_xml(notes=[], endnote_placement="EACH_COLUMN")},
+    )
+    report = audit_hwpx(path)
+    assert report["status"] == "FAIL"
+    assert [finding["code"] for finding in report["findings"]] == ["NO_NATIVE_ENDNOTES"]
+
+
+def test_blank_placement_is_undeclared_not_invalid(tmp_path: Path) -> None:
+    path = _write_hwpx(
+        tmp_path / "blank-placement.hwpx",
+        {"section0.xml": _section_xml(notes=["정답 풀이 완료"], endnote_placement="")},
+    )
+    report = audit_hwpx(path)
+    assert report["status"] == "FAIL"
+    codes = [finding["code"] for finding in report["findings"]]
+    assert "ENDNOTE_PLACEMENT_UNDECLARED" in codes
+    assert "ENDNOTE_PLACEMENT_INVALID" not in codes
+
+
+def test_undeclared_section_is_ignored_when_another_section_declares_placement(
+    tmp_path: Path,
+) -> None:
+    path = _write_hwpx(
+        tmp_path / "partially-declared.hwpx",
+        {
+            "section0.xml": _section_xml(notes=["정답 풀이 완료"], endnote_placement=None),
+            "section1.xml": _section_xml(notes=[], endnote_placement="END_OF_DOCUMENT"),
+        },
+    )
+    report = audit_hwpx(path)
+    assert report["status"] == "PASS"
+    assert report["findings"] == []
+
+
+def test_sections_are_reported_in_natural_numeric_order(tmp_path: Path) -> None:
+    path = _write_hwpx(
+        tmp_path / "section-order.hwpx",
+        {
+            "section10.xml": _section_xml(notes=["정답 풀이 열"], endnote_placement="END_OF_DOCUMENT"),
+            "section2.xml": _section_xml(notes=["정답 풀이 이"], endnote_placement="END_OF_DOCUMENT"),
+        },
+    )
+    report = audit_hwpx(path)
+    assert report["status"] == "PASS"
+    assert [section["section"] for section in report["sections"]] == [
+        "Contents/section2.xml",
+        "Contents/section10.xml",
+    ]
+
+
 def test_empty_endnote_body_is_not_a_structural_pass(tmp_path: Path) -> None:
     path = _write_hwpx(tmp_path / "empty.hwpx", {"section0.xml": _section_xml(notes=["   "])})
     report = audit_hwpx(path)
     assert report["status"] == "FAIL"
     assert any(f["code"] == "ENDNOTE_BODY_EMPTY" for f in report["findings"])
+
+
+def test_detached_endnote_body_is_not_a_structural_pass(tmp_path: Path) -> None:
+    # The body exists, but the ``endNote`` control is not inside a paragraph;
+    # this must not be mistaken for a copy-safe native reference.
+    xml = (
+        f'<hs:sec xmlns:hs="urn:synthetic:section" xmlns:hp="{HP}" xmlns:hc="{HC}">'
+        '<hp:secPr><hp:endNotePr><hp:placement place="END_OF_DOCUMENT"/></hp:endNotePr></hp:secPr>'
+        '<hp:endNote number="1"><hp:subList><hp:p><hp:run><hp:t>정답 풀이</hp:t></hp:run></hp:p></hp:subList></hp:endNote>'
+        '</hs:sec>'
+    )
+    path = _write_hwpx(tmp_path / "detached.hwpx", {"section0.xml": xml})
+    report = audit_hwpx(path)
+    assert report["status"] == "FAIL"
+    assert any(
+        finding["code"] == "ENDNOTE_REFERENCE_ANCHOR_MISSING"
+        for finding in report["findings"]
+    )
 
 
 def test_footnote_each_column_does_not_change_endnote_contract(tmp_path: Path) -> None:
@@ -118,3 +191,15 @@ def test_full_four_subject_package_passes_structural_gate(tmp_path: Path) -> Non
     assert report["status"] == "PASS"
     assert report["subject_count"] == 4
     assert report["findings"] == []
+
+
+def test_package_with_extra_subject_does_not_pass_exact_four_subject_contract(
+    tmp_path: Path,
+) -> None:
+    root = _package_with_subjects(tmp_path / "package", list(REQUIRED_SUBJECTS) + ["미적분"])
+    report = audit_package(root)
+    assert report["status"] == "FAIL"
+    assert any(
+        finding["code"] == "UNEXPECTED_SUBJECT" and finding["subject"] == "미적분"
+        for finding in report["findings"]
+    )
