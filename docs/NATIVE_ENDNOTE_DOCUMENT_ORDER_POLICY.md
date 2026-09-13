@@ -27,14 +27,21 @@
 
 1. 주 본문에는 모든 문제 페이지를 원본 읽기 순서로 먼저 배치한다. 첫 번째
    native endnote body가 렌더되기 전까지 문제 페이지가 모두 끝나야 한다.
+   **마지막 문제 본문이 인쇄된 물리 페이지와 첫 native endnote body는 절대로
+   같은 페이지를 공유해서는 안 된다.** 첫 미주 body는 마지막 문제 페이지의
+   바로 다음 새 페이지에서 시작해야 하며, 중간 빈 페이지를 넣는 방식도 허용하지
+   않는다. `END_OF_DOCUMENT` 선언만으로 이 물리적 새 페이지 경계가 증명되지는
+   않으므로, 실제 한글 재열림 후 렌더 PDF에서 확인한다.
 2. 문제 번호마다 실제 native endnote reference를 정확히 하나 연결한다. `※`,
    `[해설]`, 숨은 텍스트, 복사한 해설 문장 등 평문 표식은 연결을 대체할 수 없다.
 3. 대응하는 정답·풀이·해설은 native HWP endnote body에만 둔다. 저장 HWPX의
    모든 `hp:endNotePr/hp:placement/@place`는
    `END_OF_DOCUMENT`이어야 하며, 각주 설정인 `footNotePr`를 미주 근거로
    사용하지 않는다.
-4. 따라서 저장·재열림·렌더 후 마지막 문제 페이지 다음에는 미주 영역만 이어져야
-   한다. 해설 body를 일반 본문 문단으로 문서 끝에 이어 붙이는 방식은 native
+4. 따라서 저장·재열림·렌더 후 마지막 문제 페이지 **다음 새 페이지**에는 미주
+   영역만 이어져야 한다. 마지막 문제 페이지 하단에 첫 미주 heading/body가
+   시작하는 것은 `ENDNOTE_PAGE_BOUNDARY_NOT_FRESH_PAGE`로 FAIL한다. 해설 body를
+   일반 본문 문단으로 문서 끝에 이어 붙이는 방식은 native
    endnote가 아니며 FAIL이다. 문제와 미주 body가 문항별로 교차하거나 페이지·단
    중간에 interleave되어도 FAIL이다.
 
@@ -97,7 +104,8 @@ blocking item, release blocker 또는 문제 본문 누출이 남아 있으면 `
 ## 6. 최소 출고 체크리스트
 
 - [ ] 문제·해설·미주 문서가 별도 파일이고 stable item ID 매핑이 닫혔다.
-- [ ] 통합본의 모든 문제 페이지가 먼저 나오고, 미주 body는 문서 끝에만 렌더된다.
+- [ ] 통합본의 모든 문제 페이지가 먼저 나오고, 첫 미주 body는 마지막 문제 페이지의
+  바로 다음 새 페이지부터 문서 끝에만 렌더된다.
 - [ ] 모든 문제에 실제 native reference가 1개씩 연결되고 body 순서가 일치한다.
 - [ ] 주 본문에 inline solution leakage가 없고 평문 미주 표식이 없다.
 - [ ] 검사용 사본의 복사·이동에서 linked endnote가 보존된다.

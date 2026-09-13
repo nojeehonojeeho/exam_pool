@@ -890,8 +890,13 @@ writer에 전달하지 않는다. 600/900dpi 원본 crop에서 확인한 읽기 
    - 주 본문에 문제 외 해설 제목·정답/풀이 블록이 누출되지 않았는지
    - 저장 HWPX의 native endnote 개수·문항 순서·body 내용이 manifest와
      일치하는지
-   - 한글 재열림·렌더 후 마지막 문제 페이지 다음에 미주 영역만 이어지고,
-     문제와 미주가 페이지/단 중간에서 서로 interleave되지 않는지
+   - 한글 재열림·렌더 후 마지막 문제 페이지 **바로 다음 새 페이지**에 첫 미주
+     heading/body가 시작하는지. 마지막 문제 페이지 하단에 첫 미주가 보이거나,
+     중간 빈 페이지 뒤에 첫 미주가 시작하면 `ENDNOTE_PAGE_BOUNDARY_NOT_FRESH_PAGE`로
+     자동 FAIL한다. `END_OF_DOCUMENT` XML 선언만으로 이 물리적 경계를 통과로
+     인정하지 않는다.
+   - 그 이후 미주 영역만 이어지고, 문제와 미주가 페이지/단 중간에서 서로
+     interleave되지 않는지
 6. 실제 한글에서 문제 하나를 복사·이동하여 native 미주 연결이 유지되는지
    별도로 시험한다. 평문 표식이 따라오는 것만으로는 통과로 보지 않는다.
    복사 시험은 native 미주 수가 정확히 1개 늘고 **선택 문항의 미주 body**가
@@ -918,7 +923,11 @@ PASS로 표시하지 않는다.
 
 합성 회귀: `tests/test_endnote_qa_gate.py`의
 `test_endnote_placement_must_be_document_end`,
-`test_endnote_placement_must_be_explicit`.
+`test_endnote_placement_must_be_explicit`,
+`tests/test_hwp_first_native_endnote_page_break.py`의 fresh-page 경계 fixture.
+실제 출고에서는 `tools/patch_hwp_first_native_endnote_page_break.py`로 기존 빈
+terminal main-story 문단의 fresh-page 속성을 적용한 뒤, COM 저장/재열림과
+`tools/audit_hwp_endnote_page_boundary.py` 렌더 검사를 같은 output hash에 연결한다.
 
 ## 12.21 문항 블록 고정·수식 표시 줄바꿈·경계 마스크 증거
 

@@ -131,6 +131,14 @@
 감사기는 구조 후보 게이트이며 원본 PDF 대조·COM 재열림·전 페이지 시각검수를 대체하지
 않는다.
 
+`END_OF_DOCUMENT`는 논리적 위치 선언일 뿐 마지막 문제 페이지와 첫 미주 body의
+물리적 분리를 보증하지 않는다. `tests/test_hwp_first_native_endnote_page_break.py`는
+(a) 기존 빈 terminal main-story 문단에만 새 페이지 속성을 주는 파생 HWPX patch,
+(b) 마지막 문제 페이지와 같은 물리 페이지에서 첫 미주 heading이 렌더되면
+`ENDNOTE_PAGE_BOUNDARY_NOT_FRESH_PAGE`로 실패, (c) 바로 다음 페이지에서 렌더될 때만
+통과하는 rendered-PDF boundary gate를 고정한다. 실제 출고는
+`tools/audit_hwp_endnote_page_boundary.py` 보고서도 output hash와 함께 보존해야 한다.
+
 ### 실행 보고기 회귀
 
 `tests/test_v2_execution_report.py`는 실행 원장에 대해 다음을 고정한다.

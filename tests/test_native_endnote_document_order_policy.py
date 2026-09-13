@@ -29,6 +29,8 @@ def test_policy_makes_question_first_and_endnotes_document_end() -> None:
     for phrase in (
         "모든 문제 페이지를 원본 읽기 순서로 먼저 배치",
         "첫 번째 native endnote body가 렌더되기 전까지 문제 페이지가 모두 끝나야",
+        "마지막 문제 본문이 인쇄된 물리 페이지와 첫 native endnote body는 절대로",
+        "바로 다음 새 페이지에서 시작",
         "`hp:endNotePr/hp:placement/@place`는 `END_OF_DOCUMENT`",
         "문항 하나를 복사하면 native reference와 그 문항의 linked endnote body가 정확히",
         "문항 하나를 이동하면 reference, linked body, 자동번호",
