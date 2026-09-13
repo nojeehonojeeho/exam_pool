@@ -103,6 +103,13 @@ blocking item, release blocker 또는 문제 본문 누출이 남아 있으면 `
 
 ## 6. 최소 출고 체크리스트
 
+다음 작업의 기본 시작점은 [v12 단일 요청 절차](PDF_HWP_V12_ONE_REQUEST_WORK_INSTRUCTIONS.md)다.
+물리 경계는 독립 마지막 문제 끝과 첫 미주 body를 열람한 hash-bound 기록으로 검사한다.
+`tools/audit_hwp_endnote_page_boundary.py`의 `--boundary-review` 없는 구형 휴리스틱
+결과나 첫 미주 쪽−1 역산은 출고 증거가 아니다. report v2는 native 미주 출고 상태의
+`endnote_boundary_report` 및 `evidence_files`에 연결하여 `require_final_release`에서
+실제 입력·review·PNG 해시를 재검사한다. 세부 schema는 v12 기본 절차 §8을 따른다.
+
 - [ ] 문제·해설·미주 문서가 별도 파일이고 stable item ID 매핑이 닫혔다.
 - [ ] 통합본의 모든 문제 페이지가 먼저 나오고, 첫 미주 body는 마지막 문제 페이지의
   바로 다음 새 페이지부터 문서 끝에만 렌더된다.

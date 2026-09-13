@@ -7,7 +7,10 @@
 [HIGH-END 실행 계약](HIGHEND_4SUBJECT_ASTRA_LOW_FINAL_EXECUTION_20260908.md)에 있다.
 정책 설정·정책 테스트·커밋 성공은 실제 문서의 출고 증거를 대신하지 않는다.
 
-문서 버전: 1.3 · 2026-09-13
+문서 버전: 1.4 · 2026-09-13
+
+실행 순서는 [v12 단일 요청 기본 지시서](PDF_HWP_V12_ONE_REQUEST_WORK_INSTRUCTIONS.md)를
+적용한다. 사용자 v12 수용과 source 전수 FINAL은 독립 상태다.
 
 ## 목적
 
@@ -40,6 +43,10 @@
    본문과 solution body의 문항별 교차 배치, 미주 누락·중복·오연결은 FAIL이다.
    복사 시 대응 미주 reference/body가 정확히 한 세트 추가되고 이동 시 reference,
    body, 자동번호·수식이 보존되는 검사용 사본 증거도 필수다.
+   첫 미주 body는 마지막 문제의 바로 다음 새 물리 페이지에서 시작한다.
+   native 미주 역할/개수가 있는 출고 상태에는 `endnote_boundary_report`와 동일
+   파일의 evidence hash가 필수다. report schema v2 및 독립 실제 열람 review를
+   `hwp_release_gate.evaluate_release`가 다시 검사한다. v1 역산 경계 PASS는 인정하지 않는다.
 5. 페이지·단·글자·문단·표·그림·간격·고아 문단 서식 검사
 6. 모든 페이지를 300dpi 이상 렌더하여 잘림·겹침·경계 침범·순서·공백을 검사
 7. 상태 JSON과 코드·원본·원장·출력 해시가 연결되고, findings가 빈 배열
@@ -204,8 +211,10 @@ reopen_pass && content_pass && equation_pass && endnote_pass
 
 진행 중인 HWP 자동화 세션은 강제 종료하지 않는다. 생성된 문제·해설 파일과
 생성 중인 미주 파일은 모두 `CANDIDATE`로 기록한다. 세션이 끝난 뒤에도 재열림,
-내용 불변, 수식 구조, 문항별 미주 연결, 스타일, 전 페이지 시각 검사를 처음부터
-실행한다. 모든 게이트가 닫히기 전에는 FINAL·완성본·전체 PASS·출고 가능으로 보고하지
+내용 불변, 수식 구조, 문항별 미주 연결, 스타일, 시각 검사의 의존성 해시와 저장/재조판
+변경 영향 범위를 확인한다. 유효한 증거는 재사용하고 영향받은 범위만 재실행한다.
+전체 페이지 검수의 최종 coverage는 빠짐없이 유지한다.
+모든 게이트가 닫히기 전에는 FINAL·완성본·전체 PASS·출고 가능으로 보고하지
 않는다.
 
 ## 범위 집계 보정 규칙

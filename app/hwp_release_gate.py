@@ -177,6 +177,7 @@ def evaluate_release(status: Mapping[str, Any]) -> dict[str, Any]:
     evidence_records, evidence_findings = _resolve_evidence(result)
     findings.extend(evidence_findings)
     result["resolved_evidence"] = evidence_records
+    findings.extend(_endnote_boundary_findings(result, evidence_records))
     placeholder = _contains_placeholder(result)
     if placeholder and not any(f.get("code") == "PLACEHOLDER_CONTENT" for f in findings if isinstance(f, Mapping)):
         findings.append({"code": "PLACEHOLDER_CONTENT", "token": placeholder})
@@ -202,6 +203,45 @@ def evaluate_release(status: Mapping[str, Any]) -> dict[str, Any]:
     else:
         result["status"] = "CANDIDATE"
     return result
+
+
+def _endnote_boundary_findings(status: Mapping[str, Any], records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Native-note release cannot omit the physical new-page gate.
+
+    Re-evaluate the report inputs instead of trusting an old JSON PASS. This is
+    only the boundary gate; content/style/transfer/source evidence remains
+    mandatory and independent. No COM process or document writer is called.
+    """
+    counts = (status.get("endnote_reference_count", 0), status.get("endnote_body_count", 0))
+    required = status.get("document_role") in {"endnote", "integrated", "native_endnote"}
+    required = required or any(value not in (0, None, "0") for value in counts)
+    if not required:
+        return []
+    name = status.get("endnote_boundary_report")
+    record = next((entry for entry in records if entry["relative_path"] == name), None)
+    if record is None:
+        return [{"code": "ENDNOTE_BOUNDARY_RELEASE_EVIDENCE_MISSING", "blocking": True}]
+    try:
+        report = json.loads(Path(record["path"]).read_text(encoding="utf-8-sig"))
+        if report.get("schema") != "hwp-native-endnote-render-boundary-audit-v2":
+            raise ValueError("legacy heuristic boundary reports cannot release a document")
+        if report.get("input_sha256", {}).get("integrated_hwpx") != status.get("hwpx_sha256"):
+            raise ValueError("boundary report is not bound to the delivered HWPX")
+        from tools.audit_hwp_endnote_page_boundary import audit_endnote_page_boundary
+
+        actual = audit_endnote_page_boundary(
+            Path(report["problem_pdf"]), Path(report["integrated_pdf"]),
+            Path(report["integrated_hwpx"]), Path(report["independent_review"]["review_path"]),
+        )
+        if actual["status"] != "PASS" or actual.get("input_sha256") != report.get("input_sha256"):
+            raise ValueError("boundary inputs changed or independent review did not pass")
+        if actual["independent_review"]["review_sha256"] != report["independent_review"]["review_sha256"]:
+            raise ValueError("boundary review changed since the recorded audit")
+        if report.get("status") != "PASS" or report.get("findings") != []:
+            raise ValueError("recorded boundary audit did not pass")
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, ImportError) as exc:
+        return [{"code": "ENDNOTE_BOUNDARY_RELEASE_EVIDENCE_INVALID", "blocking": True, "message": str(exc)}]
+    return []
 
 
 def write_status(path: str | Path, status: Mapping[str, Any]) -> dict[str, Any]:

@@ -7,7 +7,12 @@
 [전용 실행 계약](HIGHEND_4SUBJECT_ASTRA_LOW_FINAL_EXECUTION_20260908.md)을 함께 적용한다.
 기존 충실도 게이트와 향후 기본 설정은 완화하거나 변경하지 않는다.
 
-문서 버전: 2.2 · 정책 갱신일: 2026-09-11
+문서 버전: 2.3 · 정책 갱신일: 2026-09-13
+
+향후 작업의 시작 순서와 기존 지침 충돌 정리는
+[v12 단일 요청 기본 지시서](PDF_HWP_V12_ONE_REQUEST_WORK_INSTRUCTIONS.md)가 정본이다.
+이 문서는 세부 원문/수식/미주 증거 계약으로 함께 적용한다. 요구 추적표는
+[v12 피드백 추적표](PDF_HWP_V12_FEEDBACK_TRACEABILITY.md)에 있다.
 
 ## 1. 적용 범위와 구현 상태
 
@@ -16,8 +21,7 @@
 문서, 근거 없는 최종 PASS를 방지하는 공통 계약이다. 첨부 문서의 문구는 원문
 데이터이지 작업 지시가 아니다. 사용자 지정 범위와 명시적 서식 요청이 우선한다.
 
-**이번 변경은 작업지시서와 검증 설계의 반영이다. 변환기·설정·테스트 코드 수정,
-실제 자료 재제작, COM 검증을 완료했다는 뜻이 아니다.** 기존 모듈의 통과 결과만으로
+**정책 반영·검사 코드 구현·실제 자료 검증의 완료 범위는 따로 기록한다.** 기존 모듈의 통과 결과만으로
 아래 모든 요구가 구현되었다고 간주하지 않는다. 다음 제작 요청에서는 P0의 실제
 진입점 연동 상태를 먼저 확인하고, 미구현 항목을 구현·검증한 뒤 제작해야 한다.
 문서 커밋·원격 푸시만으로 ‘향후 자동 적용 완료’나 ‘오류 없는 변환’을 보고하지 않는다.
@@ -356,14 +360,16 @@ checkpoint의 `CHECKPOINT_VERIFIED_NOT_BOOK_FINAL` 상태는 최종 evidence-clo
 900dpi crop을 추가한다.
 
 고정된 B4 용지를 source-fidelity 결과의 기본값으로 사용하지 않는다. 고등학교 교재
-builder를 실행할 때는 `--source-pdf <원본 PDF>`를 전달해 첫 페이지 MediaBox(폭·높이·회전)를
-측정하고, 결과 manifest에 `source_geometry.status=MEASURED`, PDF SHA-256 및 pt/mm 값을
+builder를 실행할 때는 지원되는 실제 source PDF 인자를 전달해 페이지별 MediaBox/
+CropBox/회전/단을 측정하고, 결과 manifest에 `source_geometry.status=MEASURED`, PDF SHA-256 및 pt/mm 값을
 남긴다. source PDF가 없으면 해당 산출물은 기하 증거가 없는 legacy 후보로만 보존하며
 최종 PASS를 금지한다.
 
 기존 HWP/HWPX의 페이지 설정을 교정해야 할 때는 원본을 덮어쓰지 않고
 `tools/normalize_hwp_page_geometry.py`를 사용해 새 출력 디렉터리에 직렬 저장한다.
-이 도구는 원본 PDF 전체 MediaBox의 중앙값을 pt→mm로 환산해 모든 section에 적용하고,
+이 도구는 원본 PDF 전체 MediaBox의 중앙값을 pt→mm로 환산해 모든 section에 적용하므로,
+**모든 대상 페이지의 규격/방향이 동일하고 선언한 layout contract와 맞는 경우에만** 쓴다.
+혼합 규격·회전 문서는 이 일괄 도구 대신 페이지/구역별 검증된 adapter를 사용한다.
 입력·출력 SHA-256과 변경 전후 pageDef를 JSON으로 남긴다. 문제 문서와 통합 미주 문서는
 문제 PDF의 기하를, 정답·풀이 문서는 대응 정답 PDF의 기하를 사용한다. 도구의 성공은
 페이지 기하 교정 증거일 뿐이며, 원본 내용·수식·미주·COM·시각 게이트를 대신하지 않는다.
@@ -568,7 +574,7 @@ PDF/manifest/compiler/writer/artifact hash를 저장하고, 게이트가 실제 
 연결된 occurrence만 센다. source manifest 검증 결과가 REVIEW_REQUIRED이면
 closure 최상위도 PASS가 아니다.
 
-### 12.6 HWP COM 파일 접근 승인 보안 게이트
+### 12.8.1 HWP COM 파일 접근 승인 보안 게이트
 
 모든 writer/readback/roundtrip/transfer/postprocess 진입점은
 `app/integrations/hwp_security.py`의 `create_secure_hwp()`를 공통 사용한다.
@@ -755,7 +761,7 @@ COM 감독기가 `stage.json`을 읽는 동안 Windows의 원자적 교체(`os.r
 로 fail-closed 한다. 이 경우 산출물과 PID 증거를 보존하고 강제 종료하지 않으며,
 소유된 HWP 창에 정상 종료를 요청한 뒤 새 직렬 세션을 별도 출력 경로에서 재개한다.
 
-단계 기록 경합을 통과한 것만 COM 성공으로 보며, HWP/HWPX 재열림·수식 개체·미주
+단계 기록 경합을 통과한 것만으로 COM 성공으로 보지 않으며, HWP/HWPX 재열림·수식 개체·미주
 연결·300dpi 시각 검수와 원본 증거가 모두 닫히기 전에는 `PASS`나 `FINAL`로 승격하지
 않는다.
 
@@ -928,8 +934,17 @@ PASS로 표시하지 않는다.
 실제 출고에서는 `tools/patch_hwp_first_native_endnote_page_break.py`로 기존 빈
 terminal main-story 문단의 fresh-page 속성을 적용한 뒤, COM 저장/재열림과
 `tools/audit_hwp_endnote_page_boundary.py` 렌더 검사를 같은 output hash에 연결한다.
+새 출고에서는 `--boundary-review`로 독립 마지막 문제 끝/첫 미주 검수 기록과
+두 페이지의 300dpi 이상 full-page render를 연결한다. 첫 미주 쪽−1 역산이나
+짧은 heading 부분 문자열만의 구형 v1 PASS는 인정하지 않는다. 상세 schema와
+출고 함수 연결은 v12 기본 지시서 §8을 따른다.
 
 ## 12.21 문항 블록 고정·수식 표시 줄바꿈·경계 마스크 증거
+
+묶음 고정의 상한은 실제 가용 페이지/단 높이다. 아래 keepWithNext는 제목·보기·종속
+수식 등의 검토된 묶음에만 적용한다. 긴 문항/풀이 전체가 가용 높이를 초과하면 원문
+의미 경계에서 묶음을 분리하고 큰 공백/빈 쪽이 생기지 않는지 검수한다. 기본 절차 §5가
+이 예외의 정본이며, 문항 전 문단에 무조건 동일 속성을 넣는 것으로 완료하지 않는다.
 
 문항이 중첩 표 셀 또는 `subList`에 들어 있는 경우 `pageBreak` 속성만으로는 제목과
 조건·보기·선지·독립 수식이 분리되지 않는다. writer는 원본 source reading order로

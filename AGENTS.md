@@ -1,5 +1,18 @@
 # ExamPool — 프로젝트 규칙 (AGENTS.md)
 
+## 수학 PDF 변환·미주: v12 기본 진입점
+
+다음 수학 PDF→편집 가능한 한글→native 미주 작업은 먼저
+`docs/PDF_HWP_V12_ONE_REQUEST_WORK_INSTRUCTIONS.md`와 그 문서가 참조하는
+원문 충실도 v2·COM 보안 지침을 읽고 적용한다. 피드백 누락 방지 정본은
+`docs/PDF_HWP_V12_FEEDBACK_TRACEABILITY.md`, 기계 판독 기본값은
+`config/pdf_hwp_v12_workflow.json`이다. 한 번 요청하면 내부 S0–S7을 이어가되,
+실제 진입점/adapter 연결을 확인하고 미검수 결과를 FINAL로 만들지 않는다.
+모든 문제를 먼저 배치하고 마지막 문제의 다음 새 물리 페이지부터 대응 정답과
+전체 풀이를 실제 미주로 연결한다. 과목별 전체 문제/풀이/미주통합 HWP/HWPX
+6개가 기본 제공물이며 문항별 파일은 내부 작업용이다. 사용자 지정 범위·기준본,
+문제-only/미주 생략 요청은 우선한다. v12 수용은 source 전수 검수 증명이 아니다.
+
 ## 사용자 의도 기반 실행 기본값
 
 공통 실행 규칙의 정본은 `docs/USER_INTENT_EXECUTION_DEFAULT.md`이며, 이 파일과
@@ -24,7 +37,7 @@ endnote reference를 하나씩 연결한다. 정답·풀이·해설 제목과 �
 둔다. 저장 HWPX의 `hp:endNotePr/hp:placement/@place`는 반드시
 `END_OF_DOCUMENT`여야 하며, `footNotePr`의 `EACH_COLUMN` 값과 혼동하지
 않는다. 배치 선언 누락·문서 끝 이외의 placement·문항/미주 순서 불일치·평문
-표식 사용은 자동 FAIL이다. 한글 재열림 후 마지막 문제 다음에 미주 영역만
+표식 사용은 자동 FAIL이다. 한글 재열림 후 마지막 문제의 바로 다음 새 페이지에 미주 영역만
 이어지는지와 문제 복사·이동 시 native 연결이 따라오는지를 출고 전에 확인한다.
 세부 게이트와 회귀 테스트는 `docs/PDF_HWP_SOURCE_FIDELITY_V2_WORK_INSTRUCTIONS.md`
 12.20 및 `tests/test_endnote_qa_gate.py`를 정본으로 사용한다.

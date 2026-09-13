@@ -101,6 +101,10 @@ HWPX XML을 함께 조사해 확정했다. 원본 파일·문장·수식 script�
 
 ### 통합본 미주 배치의 실제 사용 계약
 
+단일 요청 실행은 [v12 기본 절차](PDF_HWP_V12_ONE_REQUEST_WORK_INSTRUCTIONS.md)를 따른다.
+첫 미주 body는 마지막 문제의 바로 다음 새 물리 페이지에서 시작한다.
+`END_OF_DOCUMENT` 선언만으로 이 경계를 증명하지 않고 독립 경계 검수를 요구한다.
+
 통합본은 문제 복사·이동 시 대응 해설이 따라오도록 만드는 문서다. 모든 과목에서
 주 본문에는 모든 문제를 원문 검수 `source reading order`로 정확히 한 번씩만 먼저
 배치하고, 각 문제번호 뒤에는 실제 native endnote reference를 정확히 하나만

@@ -107,6 +107,12 @@ equation_font = HancomEQN
 equation_base_unit = 1100
 ```
 
+위 `equation_font=HancomEQN`은 고정된 **구형 converter 후보 단계**의 provenance
+검사값이다. 새 최종 산출물의 폰트를 그 값으로 강제하는 규칙이 아니다.
+[v12 기본 절차](PDF_HWP_V12_ONE_REQUEST_WORK_INSTRUCTIONS.md)에 따라 최종 effective
+profile(v1: HYhwpEQ/11pt)을 따로 적용·readback 검증하고, 후보 폰트와 최종 폰트의
+실제 변경/호환 근거를 기록한다. 후보 provenance PASS를 최종 style PASS로 쓰지 않는다.
+
 EquationCreate 실패는 예외로 승격한다. HWPX의 모든 section·미주·표 셀에서
 `hp:equation`의 script/font/baseUnit을 확인하고, HWP 재열기에서 `CtrlID ==
 "eqed"`와 BaseUnit을 비교한다.

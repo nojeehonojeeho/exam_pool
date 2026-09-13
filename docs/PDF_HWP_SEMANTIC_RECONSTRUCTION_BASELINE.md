@@ -7,8 +7,10 @@ at a plan-only response.
 
 The [source-fidelity v2 work instructions](PDF_HWP_SOURCE_FIDELITY_V2_WORK_INSTRUCTIONS.md)
 supersede conflicting layout, content-preservation and release rules here.
-The v2 update is documentation/design only: verify implementation and wiring in
-the actual production entrypoint before claiming automatic enforcement.
+The reusable execution order is now
+[v12 one-request workflow](PDF_HWP_V12_ONE_REQUEST_WORK_INSTRUCTIONS.md).
+Verify implementation and wiring in the actual production entrypoint before
+claiming automatic enforcement; policy, unit tests and source review are distinct.
 
 This contract is the small bridge between the reviewed PDF/OCR manifests and
 the HWP writer.  It is intentionally source-independent: real PDF, OCR,
@@ -66,8 +68,12 @@ codes and is not labelled complete.
 
 Every solution item also declares `solution_completeness` with the number of
 source blocks and reconstructed blocks plus an empty `omitted_block_ids` list.
-Explanation boxes (for example 출제코드, 해설특강, 핵심개념), answer lines,
-tables, figures, and continuation blocks are content blocks. A missing side box
+Answer lines, item-specific explanation boxes, tables, figures and continuation
+blocks are content blocks. Scope-review each side box by source owner and its
+relationship to that solution: an unrelated general concept on the same page is
+not automatically included, and an item-specific supplement is not automatically
+excluded by its heading. Record each inclusion/exclusion and uncertain ownership.
+A missing in-scope side box
 is not cosmetic: `SOLUTION_CONTENT_INCOMPLETE` blocks the pre-endnote
 checkpoint until the block is transcribed and reviewed. Do not remove an item
 from the user's scope to pass QA; a scope change requires the user's direction.

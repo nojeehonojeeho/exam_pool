@@ -1,12 +1,19 @@
 # ExamPool
 
+수학 PDF→편집형 한글→미주를 한 번에 요청할 때는
+[v12 단일 요청 기본 작업지시서](docs/PDF_HWP_V12_ONE_REQUEST_WORK_INSTRUCTIONS.md)를
+먼저 적용합니다. [42개 피드백 추적표](docs/PDF_HWP_V12_FEEDBACK_TRACEABILITY.md)에
+원문 범위·의미 문단·수식·서식·문서 끝 새 페이지 미주·복사/이동·출고 요구를 연결했습니다.
+
 수학 PDF 변환·미주 작업의 최신 계약은
 [원문 충실도 v2 작업지시서](docs/PDF_HWP_SOURCE_FIDELITY_V2_WORK_INSTRUCTIONS.md)와
 [합성 회귀 검증 명세](docs/PDF_HWP_SOURCE_FIDELITY_V2_REGRESSION_SPEC.md)를 우선 확인합니다.
 원본→검수 원장과 검수 원장→실제 writer/readback을 별도 검증하고, 원문 영역 배치와
 기본 편집 서식을 구분하며, 단계별 PASS를 최종 PASS로 승격하지 않습니다.
-**v2는 문서·설계 반영 단계입니다. 실제 제작 진입점 연동·새 회귀 테스트 구현·실제 자료
-제작/검증은 별도 작업이며, 문서 업데이트만으로 자동 적용 완료를 주장하지 않습니다.**
+**작업지시서, 구현된 검사와 합성 회귀, 실제 자료 검증을 구분합니다.** v12 경계 증거
+검사는 출고 함수에 연결되어 있으나, 모든 PDF 유형/외부 builder가 자동 지원된다는
+뜻은 아닙니다. 다음 작업의 실제 경로는 S0에서 확인하며 문서 업데이트만으로
+오류 없는 자동 변환이나 원문 전수 FINAL을 주장하지 않습니다.
 
 수학 PDF의 OCR·편집형 HWP/HWPX·네이티브 미주 작업은 OCR 전에
 [`docs/MATH_PDF_CONTENT_SCOPE_AND_ENDNOTE_MAPPING.md`](docs/MATH_PDF_CONTENT_SCOPE_AND_ENDNOTE_MAPPING.md)의

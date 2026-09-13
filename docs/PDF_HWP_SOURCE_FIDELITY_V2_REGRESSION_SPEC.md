@@ -10,6 +10,12 @@
 
 ## 공통 조건
 
+v12 기본 진입점과 42개 요구 추적의 연결은 `tests/test_pdf_hwp_v12_workflow_contract.py`로
+검사한다. 물리 경계 보강은 `tests/test_hwp_first_native_endnote_page_break.py`에서
+독립 검수 없음, 같은 쪽 상단 문제+미주, 빈 gap, 부분 heading, 입력 해시 변경,
+필수 경계 report 없는 출고, 검수 기록 변조를 검사한다. 합성 reviewer fixture는
+실제 PDF의 열람 완료 기록을 자동 생성하는 도구가 아니다.
+
 - 실제 교재 문장·문항·도형·PDF·HWP·전사 원장은 fixture로 사용하지 않는다.
 - 독자적으로 만든 짧은 합성 문항, 표, 도형, 수식과 정상/손상 쌍을 사용한다.
 - 원문→검수 원장과 검수 원장→출력 검사를 분리한다. 둘 다 같은 잘못된 전사에서
