@@ -61,6 +61,45 @@ def wrap_top_level_equalities(script, max_chars=64):
     if re.sub(r'\s|#','',result)!=re.sub(r'\s|#','',script): raise ValueError('MATH_TOKEN_CHANGED')
     return result
 
+def trim_terminal_endnote_blank_paragraphs(section, *, max_removals=1):
+    """Remove only a harmless terminal blank from the final native endnote.
+
+    Hanword can retain an otherwise invisible final ``hp:p`` after a native
+    endnote body.  On B4 it may become a completely blank last print page.
+    This is deliberately narrow: it never changes a question, any earlier
+    endnote, a paragraph carrying a break, or a paragraph containing an
+    object/formatting control other than an empty ``run/t`` pair.
+    """
+    if max_removals < 0:
+        raise ValueError('NEGATIVE_MAX_REMOVALS')
+    notes=section.xpath('.//p:endNote',namespaces=NS)
+    if not notes or not max_removals:
+        return 0
+    sublists=notes[-1].xpath('./p:subList|.//p:subList',namespaces=NS)
+    if not sublists:
+        return 0
+
+    def is_blank_terminal_paragraph(node):
+        if E.QName(node).localname!='p':
+            return False
+        if node.get('pageBreak','0')!='0' or node.get('columnBreak','0')!='0':
+            return False
+        descendants=list(node.iterdescendants())
+        # A real equation/picture/table/control is never a disposable blank.
+        if any(E.QName(child).localname not in {'run','t'} for child in descendants):
+            return False
+        return not ''.join(node.itertext()).strip()
+
+    removed=0
+    for sublist in reversed(sublists):
+        while removed<max_removals:
+            paragraphs=[node for node in list(sublist) if E.QName(node).localname=='p']
+            if not paragraphs or not is_blank_terminal_paragraph(paragraphs[-1]):
+                return removed
+            sublist.remove(paragraphs[-1])
+            removed+=1
+    return removed
+
 def resolved_page_frames(header, sections):
     records={n.get('id'):n for n in header.xpath('.//h:borderFill',namespaces=NS)}
     return [[(E.QName(c).localname,c.get('type')) for c in records[b.get('borderFillIDRef')] if E.QName(c).localname.endswith('Border')]

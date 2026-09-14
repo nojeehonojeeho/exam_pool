@@ -410,3 +410,26 @@ pageBorderFill만 교정하여 문제 조건 상자와 가운데 선을 보존�
 공간은 실제 출력 좌표로 측정한다. 긴 해설 수식은 의미 보존 줄 분리를 먼저 검토하고,
 축소 예외는 occurrence별로 재검수한다. B4 실제 크기 및 전체 문항 복사 검증을
 생략하거나 anchor 한 문단 복사를 전체 문항 복사로 보고하지 않는다.
+
+### 13.9 수식 원형·문서 끝 빈쪽·이미지 전송의 출고 보정
+
+원본 HWP/HWPX의 수식 script는 독립적인 원문 증거다. 긴 해설식을 보기 좋게
+만든다는 이유로 `#` 표시 줄바꿈이나 토큰 재배열을 기본 적용하지 않는다. 원문과
+대상 HWPX의 owner/순서/script hash를 직접 비교하고, 원본 script와 다르면
+`MATHIR_SCRIPT_DRIFT`로 FAIL한다. 원문과 별도인 display-only 파생식을 명시적으로
+허용한 예외만 원문 hash, 파생 hash, occurrence, 렌더 검토를 함께 남길 수 있다.
+
+문서 끝 native endnote의 마지막에 object·page/column break·문자가 없는 빈
+`hp:p` 하나가 남아 B4 인쇄에서 빈 마지막 쪽을 만들 수 있다. 그 경우에만 마지막
+native endnote의 마지막 blank paragraph를 최대 한 개 제거할 수 있다. 이 보정은
+문항/해설/수식/그림을 제거하거나 일반 본문·앞선 미주를 바꾸는 방법이 아니며,
+보정 뒤 원문 payload 대조, COM 저장·재열림, B4 PrintToPDFEx, 마지막 문제/첫 미주
+경계, 마지막 인쇄 쪽의 비어 있지 않음을 다시 검사한다.
+
+Hanword의 실제 복사·붙여넣기와 재저장은 `binaryItemIDRef`를 재번호 매길 수 있다.
+따라서 그림 전송 QA는 volatile ID 동일성이 아니라 BinData payload SHA-256, owner,
+순서, 크기/위치를 비교한다. HWP/HWPX의 GUI `PageCount`는 현재 printer context에
+따라 달라질 수 있으므로 기록은 하되, B4 실제 지면 판정은 두 형식의
+`PrintToPDFEx` MediaBox, 물리 page count, 300dpi 이상 렌더로 한다. 두 B4 출력이
+서로 다르거나 빈 마지막 물리 쪽·클리핑이 있으면 `B4_PHYSICAL_LAYOUT_MISMATCH`로
+FAIL한다.

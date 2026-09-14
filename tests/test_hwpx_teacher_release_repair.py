@@ -1,5 +1,6 @@
 from lxml import etree as E
 from app.hwpx_teacher_release_repair import H,P,remove_page_frame,resolved_page_frames,wrap_top_level_equalities
+from app.hwpx_teacher_release_repair import trim_terminal_endnote_blank_paragraphs
 from app.hwpx_teacher_release_repair import main_question_range
 
 def test_whole_question_includes_following_conditions_and_choices():
@@ -30,3 +31,25 @@ def test_does_not_split_relations_or_broken_groups():
 def test_existing_multiline_untouched():
     s='a '*40+' # = b'
     assert wrap_top_level_equalities(s,24)==s
+
+def test_terminal_endnote_blank_is_removed_without_touching_content():
+    sec=E.fromstring(
+        f'<section xmlns="{P}"><p><endNote><subList>'
+        '<p><run><t>정답: 3</t></run></p>'
+        '<p pageBreak="0" columnBreak="0"><run><t>  </t></run></p>'
+        '</subList></endNote></p></section>'
+    )
+    assert trim_terminal_endnote_blank_paragraphs(sec)==1
+    paragraphs=sec.xpath('.//p:endNote/p:subList/p:p',namespaces={'p':P})
+    assert len(paragraphs)==1
+    assert ''.join(paragraphs[0].itertext())=='정답: 3'
+
+def test_terminal_endnote_trimmer_keeps_objects_and_page_breaks():
+    sec=E.fromstring(
+        f'<section xmlns="{P}"><p><endNote><subList>'
+        '<p><run><t>정답: 3</t></run></p>'
+        '<p pageBreak="1"><run><t/></run></p>'
+        '<p><run><equation/></run></p>'
+        '</subList></endNote></p></section>'
+    )
+    assert trim_terminal_endnote_blank_paragraphs(sec)==0
