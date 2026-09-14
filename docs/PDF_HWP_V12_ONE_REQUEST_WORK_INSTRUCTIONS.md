@@ -371,3 +371,33 @@ Hanword 재열림은 HWPX의 `charPrIDRef` 번호를 재할당할 수 있다. �
 비교한다. 재열림 뒤 사용 run 하나라도 기준 KoPub 역할에서 대체 글꼴이 되면
 `KOPUB_FONT_NOT_ACTIVE`이며, synthetic/nonexistent charPr ID가 기본 한컴 글꼴로
 되돌아간 경우도 같은 실패로 처리한다.
+
+### 13.6 전시용 단원·회차 머리말은 문항 미주 본문에 섞지 않는다
+
+별도 정답·풀이 문서의 단원/회차 머리말은 탐색성을 위한 **문서 경계**이지 앞 문항의
+해설이 아니다. native 미주를 만들 때 `다음 번호 전까지`의 선택 범위를 그대로 쓰면
+그 머리말이 직전 문항의 미주 끝에 흡수될 수 있다. 따라서 미주 payload는
+`SourceItemIR`의 문제/정답/해설 역할 경계 또는 그와 동등한 heading-제외 bridge에서만
+얻고, 문서의 전시용 머리말은 별도로 처리한다. 각 native note의 본문 token·수식 script를
+원본 해당 해설과 1:1 비교하며, 다음 단원/회차 heading이 섞이면
+`ENDNOTE_SECTION_HEADING_LEAK`으로 FAIL한다. 통합본의 문제 본문에는 문서 흐름용
+heading을 유지할 수 있으나, 모든 문제 뒤 새 물리 페이지부터 시작하는 미주 본문에는
+문항별 해설만 들어가야 한다.
+
+### 13.7 문서 끝 2단 미주의 긴 네이티브 수식은 잘리지 않아야 한다
+
+교사 기준본의 B4 2단과 문서 끝 native 미주 구조를 유지할 때, 원본의 긴 단일
+Hancom 수식은 자동 줄바꿈되지 않아 우측 단을 넘을 수 있다. 수식 개수·script·HWPX
+구조가 정상이어도 이 현상은 `ENDNOTE_EQUATION_OVERFLOW`이며 출고 FAIL이다. 첫
+미주 쪽만 보거나 자동 edge 검사만 통과했다고 가정하지 말고, 실제 Hanword COM
+재열림 후 300dpi 이상의 전 페이지 렌더와 길이/복잡도 상위 수식 표본을 함께 본다.
+
+해결은 문제 본문이나 별도 풀이 문서의 전체 수식 크기를 일괄 축소하는 것이 아니다.
+문서 끝 native endnote 안에서만, 줄바꿈이 불가능한 해당 occurrence에 한해
+`HYhwpEQ`·`lineMode=CHAR`·수식 script를 바꾸지 않은 채 명시적인 최소 가독 크기
+범위 안에서 `baseUnit`을 조정할 수 있다. 모든 변경 occurrence에는 문항/미주 번호,
+원래·변경 `baseUnit`, script hash, 조정 사유를 기록하고, main story와 별도 문제/풀이
+수식은 기준 profile의 `baseUnit=1100`을 유지한다. 조정 뒤 script/owner/order,
+native note 본문, COM 저장·재열림, 전 페이지 렌더를 다시 대조한다. 축소해도 넘침이
+남거나 읽을 수 없는 크기만 가능하면 조용히 통과시키지 말고 layout 설계를 바꾼 뒤
+새 staging 개정으로 재검증한다.

@@ -74,6 +74,8 @@ runner/writer/packager 호출 연결을 기록하고, 미연동 경로는 구현
 | V12-41 | 내부 검수/진단 문구 유출 금지 | body/endnote/caption과 metadata 분리, 발견후 내용 보존 교정 | `app/hwp_delivery_reaudit.py` |
 | V12-42 | 다음 실행 모드 선택 | Luna max 표준 기본, Astra xhigh는 허용된 난제 감사; 품질은 증거로 판단 | 기본 지시서 §12 |
 | V12-43 | 이미 편집 가능한 HWP의 grouped 수식·표·그림이 clipboard 전송에서 부분 유실 | `Paste=True`를 성공 근거로 삼지 않고 문항 역할별 text·수식 script 순서·표·그림을 원본과 대조; 부분 유실은 `NATIVE_OBJECT_TRANSFER_INCOMPLETE`로 차단하고 새 staging HWPX에서만 원본 문단/BinData를 복구한 뒤 COM·렌더를 재검증 | 기본 지시서 §13.5 |
+| V12-44 | 별도 풀이 문서의 단원/회차 머리말이 직전 문항 native 미주에 흡수 | next-number block 선택을 금지하고 SourceItemIR 또는 heading 제거 bridge로 해설 payload를 고정; note별 token/script 대조에서 다음 section heading 누출은 `ENDNOTE_SECTION_HEADING_LEAK` FAIL | 기본 지시서 §13.6 |
+| V12-45 | 문서 끝 B4 2단 native 미주의 긴 수식이 우측 단을 넘어 잘림 | 수식 script·font·lineMode는 보존하고, endnote occurrence만 감사 가능한 범위에서 `baseUnit`을 개별 조정; main story/별도 문서의 1100 profile은 고정, COM 재열림과 300dpi 전체 렌더에서 `ENDNOTE_EQUATION_OVERFLOW`를 차단 | 기본 지시서 §13.7 |
 
 ## 3. 이번 정리에서 확인한 지침 충돌과 조치
 
