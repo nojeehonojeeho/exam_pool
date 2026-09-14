@@ -12,6 +12,21 @@ P='http://www.hancom.co.kr/hwpml/2011/paragraph'
 H='http://www.hancom.co.kr/hwpml/2011/head'
 NS={'p':P,'h':H}
 
+def main_question_range(section, note_index, *, trailing_nonquestion=None):
+    """Half-open main paragraph range, never just the native anchor paragraph.
+
+    Caller verifies these positions against the actual COM selection before
+    copying, and supplies profile-specific trailing spacer/title recognition.
+    """
+    nodes=list(section)
+    starts=[i for i,node in enumerate(nodes) if node.find('.//{%s}endNote'%P) is not None]
+    if not 0<=note_index<len(starts):raise IndexError(note_index)
+    start=starts[note_index]
+    end=starts[note_index+1] if note_index+1<len(starts) else len(nodes)
+    if trailing_nonquestion:
+        while end>start+1 and trailing_nonquestion(nodes[end-1]):end-=1
+    return start,end
+
 def remove_page_frame(header, sections):
     records=header.find('.//{%s}borderFills'%H)
     if records is None: raise ValueError('BORDER_CATALOGUE_MISSING')

@@ -1,5 +1,10 @@
 from lxml import etree as E
 from app.hwpx_teacher_release_repair import H,P,remove_page_frame,resolved_page_frames,wrap_top_level_equalities
+from app.hwpx_teacher_release_repair import main_question_range
+
+def test_whole_question_includes_following_conditions_and_choices():
+    sec=E.fromstring(f'<section xmlns="{P}"><p/><p><endNote/></p><p><tbl/></p><p/><p role="workspace"/><p><endNote/></p></section>')
+    assert main_question_range(sec,0,trailing_nonquestion=lambda p:p.get('role')=='workspace')==(1,4)
 
 def test_page_frame_does_not_change_shared_table_border_or_column():
     head=E.fromstring(f'<head xmlns="{H}"><borderFills itemCnt="1"><borderFill id="3"><leftBorder type="SOLID"/><rightBorder type="SOLID"/><topBorder type="SOLID"/><bottomBorder type="SOLID"/></borderFill></borderFills></head>')
