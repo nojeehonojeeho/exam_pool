@@ -50,3 +50,29 @@ def resolved_page_frames(header, sections):
     records={n.get('id'):n for n in header.xpath('.//h:borderFill',namespaces=NS)}
     return [[(E.QName(c).localname,c.get('type')) for c in records[b.get('borderFillIDRef')] if E.QName(c).localname.endswith('Border')]
             for sec in sections for b in sec.xpath('.//p:pageBorderFill',namespaces=NS)]
+
+def export_b4_pdf(hwp, path):
+    """Hanword HPrint dimensions are HWPUNIT, not DEVMODE tenths of mm.
+
+    Caller owns the secured serial session. No global printer setting changes.
+    A4 SaveAs output must not be resized and presented as native B4 evidence.
+    """
+    from pathlib import Path
+    import time
+    import fitz
+    path=Path(path).resolve()
+    if path.exists():raise FileExistsError(path)
+    p=hwp.HParameterSet.HPrint
+    hwp.HAction.GetDefault('PrintToPDFEx',p.HSet)
+    p.filename=str(path);p.PrinterName='Hancom PDF'
+    p.PrinterPaperSize=0;p.PrinterPaperWidth=72852;p.PrinterPaperLength=103180
+    p.PrintMethod=1;p.ZoomX=100;p.ZoomY=100;p.PrintToFile=1
+    if not hwp.HAction.Execute('PrintToPDFEx',p.HSet):raise RuntimeError('B4_PDF_EXPORT_FAILED')
+    for _ in range(20):
+        if path.exists() and path.stat().st_size:break
+        time.sleep(1)
+    with fitz.open(path) as doc:
+        sizes=[(p.rect.width,p.rect.height) for p in doc]
+    if not sizes or any(abs(w-728.52)>1.5 or abs(h-1031.80)>1.5 for w,h in sizes):
+        raise RuntimeError('B4_PDF_MEDIABOX_MISMATCH')
+    return {'pages':len(sizes),'sizes_pt':sorted(set(sizes)),'native_export':True}
