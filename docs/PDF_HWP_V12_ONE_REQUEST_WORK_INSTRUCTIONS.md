@@ -349,3 +349,25 @@ geometry와 PDF 변환 제한을 별도로 보고하며, A4 PDF를 B4 layout PAS
 2문항 하향, 물리 필기 공간 최소값을 검사한다. 실제 writer 회귀는 workspace carrier가
 한 문항마다 하나를 초과하지 않고, 문항별 measured space와 원본 역할 profile을 원장에
 남기는지 검사한다.
+
+### 13.5 기존 HWP 원본의 네이티브 전송 실패를 숨기지 않는다
+
+입력이 이미 편집 가능한 HWP/HWPX이면 OCR을 기본 경로로 바꾸지 않는다. 원본 HWP의
+텍스트·수식·표·그림을 native clipboard 또는 동등한 한글 개체 전송으로 옮기고, 원본은
+읽기 전용 hash로 고정한다. 단, clipboard API가 `Paste=True`를 반환했다고 해서
+전송이 성공한 것은 아니다. 각 문항의 문제/정답/해설 역할에 대해 원본과 후보의
+수식·표·그림 개수, 수식 script 순서, 본문 token을 비교해야 한다. 빈 clipboard payload,
+부분 전송, 그림 하나만 빠진 전송은 즉시 `NATIVE_OBJECT_TRANSFER_INCOMPLETE`로 기록하고
+후속 reflow·미주·출고 단계에 넘기지 않는다.
+
+직접 HWPX 구조 복구가 필요한 드문 grouped-object 실패는 원본 HWPX의 해당 문단과
+`content.hpf`의 명시적 BinData asset을 **새 staging HWPX**에만 복사·재매핑하는 방식으로
+한정한다. 기존 후보·원본·출고본을 덮어쓰지 않으며, asset ID/href/hash, 문단 범위,
+복구 전후 개체 대조를 evidence로 남긴다. 이 경로도 Hanword secure COM 재열림과
+300dpi render를 통과하기 전에는 PASS가 아니다.
+
+Hanword 재열림은 HWPX의 `charPrIDRef` 번호를 재할당할 수 있다. 따라서 글꼴 QA는
+고정 ID 일치가 아니라 실제 사용 run의 한글/영문/한자/기호 face, 크기, 자간과 렌더를
+비교한다. 재열림 뒤 사용 run 하나라도 기준 KoPub 역할에서 대체 글꼴이 되면
+`KOPUB_FONT_NOT_ACTIVE`이며, synthetic/nonexistent charPr ID가 기본 한컴 글꼴로
+되돌아간 경우도 같은 실패로 처리한다.

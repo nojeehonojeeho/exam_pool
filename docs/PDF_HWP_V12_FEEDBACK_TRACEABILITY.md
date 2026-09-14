@@ -73,6 +73,7 @@ runner/writer/packager 호출 연결을 기록하고, 미연동 경로는 구현
 | V12-40 | 지시서·코드·테스트·GitHub 갱신 | 요구/회귀/실제 호출 연결 확인; fork/origin 구분; 저작권 자료 git 제외 | 기본 지시서 §2, §11 |
 | V12-41 | 내부 검수/진단 문구 유출 금지 | body/endnote/caption과 metadata 분리, 발견후 내용 보존 교정 | `app/hwp_delivery_reaudit.py` |
 | V12-42 | 다음 실행 모드 선택 | Luna max 표준 기본, Astra xhigh는 허용된 난제 감사; 품질은 증거로 판단 | 기본 지시서 §12 |
+| V12-43 | 이미 편집 가능한 HWP의 grouped 수식·표·그림이 clipboard 전송에서 부분 유실 | `Paste=True`를 성공 근거로 삼지 않고 문항 역할별 text·수식 script 순서·표·그림을 원본과 대조; 부분 유실은 `NATIVE_OBJECT_TRANSFER_INCOMPLETE`로 차단하고 새 staging HWPX에서만 원본 문단/BinData를 복구한 뒤 COM·렌더를 재검증 | 기본 지시서 §13.5 |
 
 ## 3. 이번 정리에서 확인한 지침 충돌과 조치
 
