@@ -56,3 +56,14 @@ anchor만copy, 제목쪽-1 역산, 고정수치·예외횟수 PASS, 무한 COM �
 범위와 hash-bound metadata correction에 한해 닫히며, 이를 전체 교재 closure로
 승계하지 않는다. 역할별 font/style와 전 문항 workspace가 닫히지 않으면 gate는
 계속 BLOCKED다.
+
+## 2026-09-15 full-scope continuation rule
+
+전체 원장으로 확장할 때는 `candidate_item_ids`를 source-owned ID로 고정하고,
+native staging·COM readback·B4 PDF 각각의 hash를 별도로 기록한다. 마지막 문제와
+첫 미주의 물리 페이지는 실제 PDF에서 각각 측정하며 제목 위치로 역산하지 않는다.
+300dpi 전 페이지 렌더와 PDF 글꼴 존재는 역할별 실제 렌더 동등성과 구분한다.
+문항별 text-block 측정에서 여러 표지/문항이 하나의 복합 block에 섞이면 해당
+문항은 workspace REVIEW_REQUIRED로 남기고, 빈 엔터·캐시 높이 또는 대표 12개
+결과로 전체 PASS를 승격하지 않는다. 전체 문서 clipboard copy/move가 실패하면
+대표 transfer PASS를 전체 transfer PASS로 승계하지 않는다.
