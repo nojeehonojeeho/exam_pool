@@ -252,6 +252,19 @@ def build(config,config_base):
     if not note_keep_with_next<=set(selected):raise ValueError('LAYOUT_EXCEPTION_OUTSIDE_SELECTION')
     note_page_break_before=set(config.get('note_page_break_before_item_ids',[]))
     if not note_page_break_before<=set(selected):raise ValueError('LAYOUT_EXCEPTION_OUTSIDE_SELECTION')
+    # Question-body pagination is distinct from the endnote-only controls
+    # above.  It is deliberately opt-in and evidence-bound: a question is
+    # moved to a new physical page only when a rendered semantic endpoint
+    # proves that its usable writing space is too small.  Do not infer this
+    # from paragraph counts or cached line heights.
+    question_page_break_before=set(config.get('question_page_break_before_item_ids',[]))
+    if not question_page_break_before<=set(selected):raise ValueError('LAYOUT_EXCEPTION_OUTSIDE_SELECTION')
+    if question_page_break_before:
+        proof=config.get('question_layout_exception_evidence')
+        if not isinstance(proof,dict) or not proof.get('path') or not proof.get('sha256'):
+            raise ValueError('QUESTION_LAYOUT_EXCEPTION_EVIDENCE_REQUIRED')
+        if file_hash(base/proof['path'])!=proof['sha256']:
+            raise ValueError('QUESTION_LAYOUT_EXCEPTION_EVIDENCE_HASH')
     note_spacer_before=set(config.get('note_spacer_before_item_ids',[]))
     if not note_spacer_before<=set(selected):raise ValueError('LAYOUT_EXCEPTION_OUTSIDE_SELECTION')
     spacer_percent=config.get('note_spacer_line_spacing_percent',1000)
@@ -356,9 +369,24 @@ def build(config,config_base):
             heading.set('pageBreak','1' if plan else '0');heading.set('columnBreak','0')
             generated.append(heading);prior_heading=chapter
         height=cached_height(nodes)
+        # A manual question break is a physical-layout repair, not merely a
+        # paraPr keep flag.  It resets the slot before the normal 3-up plan so
+        # the current question starts at a page top.  A chapter heading already
+        # performs that reset, so it must not create a blank intervening page.
+        force_question_page_break=item_id in question_page_break_before and bool(plan) and not heading_added
+        if force_question_page_break:
+            slot=0;page+=1
         if slot>=3 or (slot==2 and right_height+height+config['layout']['reserved_right_gap_hwpunit']>config['layout']['column_height_hwpunit']):slot=0;page+=1
         for n in nodes:n.set('pageBreak','0');n.set('columnBreak','0')
-        if slot==0 and plan and not heading_added:nodes[0].set('pageBreak','1')
+        # Do not mutate the shared paragraph style: ``pageBreakBefore`` on a
+        # cloned paraPr caused Hanword's PDF exporter to omit a trailing
+        # source-owned range.  An empty break-only paragraph is also ignored
+        # by this exporter in a two-column story.  The native pageBreak
+        # attribute on the actual next question anchor is the same mechanism
+        # used by ordinary planned page transitions and survives HWP/HWPX
+        # roundtrip without sharing a style ID.
+        if slot==0 and plan and not heading_added:
+            nodes[0].set('pageBreak','1')
         if slot==1:nodes[0].set('columnBreak','1')
         if slot==2:generated.append(copy.deepcopy(spacer))
         note=nodes[0].find('.//'+P('endNote'))
@@ -451,6 +479,8 @@ def build(config,config_base):
     report['note_column_start_item_ids']=note_column_starts
     report['note_keep_with_next_item_ids']=sorted(note_keep_with_next)
     report['note_page_break_before_item_ids']=sorted(note_page_break_before)
+    report['question_page_break_before_item_ids']=sorted(question_page_break_before)
+    report['question_page_break_mechanism']='native_question_anchor_page_break_attribute' if question_page_break_before else None
     report['note_spacer_before_item_ids']=sorted(note_spacer_before)
     report['note_spacer_line_spacing_percent']=spacer_percent
     report['note_image_before_label_item_ids']=sorted(note_image_before_label)

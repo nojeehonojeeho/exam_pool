@@ -175,6 +175,14 @@ def test_com_transfer_valid_selection():
     from tools.teacher_workflow_com import validate_transfer_selection
     validate_transfer_selection([2,0,1],3)
 
+def test_full_transfer_scope_ids_are_source_bound(tmp_path):
+    from tools.teacher_workflow_com import scope_ids_from
+    ledger=tmp_path/'scope.json';ledger.write_text(json.dumps({'scope_ids':['source-q1','source-q2']}),encoding='utf8')
+    assert scope_ids_from(ledger,2)==['source-q1','source-q2']
+    ledger.write_text(json.dumps({'scope_ids':['source-q1']}),encoding='utf8')
+    with pytest.raises(ValueError,match='TRANSFER_ITEM_IDS_SCOPE_MISMATCH'):
+        scope_ids_from(ledger,2)
+
 def test_note_page_start_is_explicit_and_bound(tmp_path):
     cfg=configuration(tmp_path);cfg['note_page_start_item_ids']=['id0']
     result=build(cfg,tmp_path);out=Package(tmp_path/'result.hwpx');sec=next(iter(out.sections.values()))
@@ -206,6 +214,30 @@ def test_note_page_break_before_clones_break_style(tmp_path):
     build(cfg,tmp_path);out=Package(tmp_path/'result.hwpx');sec=next(iter(out.sections.values()));first=next(n for n in sec if n.find('.//'+P('endNote')) is not None).find('.//'+P('endNote')+'/'+P('subList')+'/'+P('p'))
     para=out.catalogs['paraPr'][first.get('paraPrIDRef')];setting=next(x for x in para.iter() if E.QName(x).localname=='breakSetting')
     assert setting.get('keepWithNext')=='1' and setting.get('keepLines')=='1' and setting.get('pageBreakBefore')=='1'
+
+def test_question_page_break_requires_bound_evidence_and_starts_a_new_page(tmp_path):
+    cfg=configuration(tmp_path,count=4)
+    proof=tmp_path/'workspace-evidence.json';proof.write_text('{"semantic_endpoint":true}')
+    cfg['question_page_break_before_item_ids']=['id3']
+    cfg['question_layout_exception_evidence']={'path':str(proof),'sha256':file_hash(proof)}
+    result=build(cfg,tmp_path)
+    assert result['question_page_break_before_item_ids']==['id3']
+    assert result['question_page_break_mechanism']=='native_question_anchor_page_break_attribute'
+    # id3 is the second selected question.  The report records a fresh logical
+    # physical page group rather than treating a keep-with-next flag as repair.
+    assert result['page_plan'][1]['page_group'] > result['page_plan'][0]['page_group']
+    rebuilt=Package(tmp_path/'result.hwpx');sec=next(iter(rebuilt.sections.values()))
+    anchors=[index for index,node in enumerate(sec) if node.find('.//'+P('endNote')) is not None]
+    assert sec[anchors[1]].get('pageBreak')=='1'
+    # The question itself carries the native break.  This is intentionally
+    # distinct from a blank paragraph (ignored by Hanword in a two-column
+    # story) and from a shared paraPr pageBreakBefore mutation.
+    assert payload(rebuilt,[sec[anchors[1]]])[0][0]=='text'
+
+def test_question_page_break_rejects_unbound_or_stale_evidence(tmp_path):
+    cfg=configuration(tmp_path,count=4);cfg['question_page_break_before_item_ids']=['id3']
+    with pytest.raises(ValueError,match='QUESTION_LAYOUT_EXCEPTION'):
+        build(cfg,tmp_path)
 
 def test_note_spacer_before_adds_explicit_layout_paragraph(tmp_path):
     cfg=configuration(tmp_path);cfg['note_spacer_before_item_ids']=['id0'];cfg['note_spacer_line_spacing_percent']=1200

@@ -52,7 +52,24 @@
 6. 별도 폴더에서 대표 일반/긴 수식/표·조건/그림/보기/단원·회차 경계/마지막
    문항·첫 미주 시험. 문제 지면은 B4 약 3문항(좌1/우2), 복잡하면1–2문항.
    약60mm 실제 필기 공간을 마지막 가시 개체 끝부터 측정한다. 캐시된 높이와
-   빈 엔터 수는 최종 증거가 아니다. 긴 식을 일괄 축소하거나 script를 변경하지 않는다.
+   빈 엔터 수는 최종 증거가 아니다. PDF의 텍스트·수식·표·그림·도형 leaf object
+   중 해당 문항의 마지막 endpoint에서 다음 문항 marker 또는 물리 단 끝까지를
+   측정한다. 복합 텍스트 블록은 블록 bbox가 아니라 leaf endpoint를 사용하고,
+   다음 문항의 native anchor 바로 앞 단원/회차 구조 제목은 앞 문항 endpoint로
+   귀속하지 않는다. 이 제외는 heading object hash, anchor 위치, 같은 물리
+   페이지·단 좌표를 함께 기록한 경우에만 허용하며 일반 본문·조건·표·그림을
+   제목으로 일괄 제외해서는 안 된다.
+   끝점이 불명확하거나 60mm 미만이면 `REVIEW_REQUIRED`다. 렌더 증거가 있는
+   item별 page-break 재배치는 `question_page_break_before_item_ids`와 hash-bound
+   `question_layout_exception_evidence`로만 허용한다. 긴 식을 일괄 축소하거나
+   script를 변경하지 않는다. question anchor가 공유하는 `paraPr`에
+   `breakSetting.pageBreakBefore`를 붙여 전역 스타일을 바꾸지 않는다. 이 방식은
+   HWPX 내부에서는 정상처럼 보여도 한글 PDF 출력에서 뒤쪽 source-owned 문항을
+   누락시킨 실패 이력이 있다. 빈 spacer paragraph의 page-break도 2단 한글 출력에서
+   무시된 사례가 있으므로 기본 보정으로 쓰지 않는다. 검증된 보정은 **다음 문항의
+   독립 native anchor에만** 명시 페이지 나눔 속성을 부여하는 방식이다. anchor가
+   공유하는 스타일 객체는 복제·변경하지 않으며, 새 HWP/HWPX 재열림 PDF에서 **모든 native
+   reference 1..N이 첫 native 미주 앞 main story에 존재하는지**를 먼저 확인한다.
 7. `python tools/teacher_workflow_com.py --input pilot.hwpx --out NEW_DIR --lock SHARED_LOCK`.
    직렬 보안 세션, HWP/HWPX 저장/재열림, 실제 B4 출력. 모든 COM 호출은 외부
    단계 deadline 하에 실행한다. 고착 시 worker/HWP/lease를 보존하고 timeout으로
@@ -62,6 +79,23 @@
    문항 전체를 새 문서에 역순 복사하고, 첫 문항을 끝으로 Cut/Paste하여 이동한다.
    이후 HWP 재열림 HWPX에서 각 문항·해설 payload를 다시 비교한다.
    이 숫자는 예시이지 다음 책의 고정 시험 범위가 아니다.
+
+   Windows native clipboard는 `Hwp Native` 형식의 실제 바이트가 생성될 때만
+   성공이다. sequence 변경이나 내부 Cut/Paste/HWPX readback 성공은 이를
+   대체하지 않는다. 복사 뒤 10초 이내에 native format ID·사용 가능 여부·sequence·
+   STA message pump 기록을 남기고, 실패하면 같은 세션을 반복하지 않는다. 저장·
+   정상 종료 후 새 격리 세션에서 같은 범위를 **한 번만** 재시험한다. 재실패는
+   `CLIPBOARD_NATIVE_UNAVAILABLE`로 기록하여 FINAL을 차단하되, 내부 Cut/Paste
+   검증은 별도 evidence로 보존한다.
+
+   전체 범위 검증은 `--transfer-all --item-ids-json SOURCE_AUDIT.json`으로 실행한다.
+   `scope_ids`가 현재 target anchor 수와 정확히 같을 때만 허용하며, 각 source-owned
+   ID마다 native Copy와 native Cut/Move를 한 번씩 수행한다. Copy 대상은 새 문서이고
+   Move 대상은 의도적으로 역순인 별도 새 문서여야 한다. 두 readback HWPX에서
+   문항·조건·보기·표·그림·수식·native 미주의 payload SHA-256을 source와 비교한다.
+   이 과정에서 생긴 source/destination 탭은 저장 뒤 모두 `Close(isDirty=False)`로
+   정상 닫고, 남은 소유 PID가 있으면 강제 종료하지 않은 채 `OWNED_PROCESS_DID_NOT_EXIT`
+   로 차단한다.
 9. 대표 통과 후 같은 경로로 전체 적용. 변경 영향만 재검증. 별도 문제/풀이/
    통합은 같은 content revision에서 생성한다. 사용자가 통합만 요청하면2개,
    기본은 전체3역할 HWP/HWPX6개. QA·문항별 파일은 출고 폴더 밖에 둔다.
@@ -75,12 +109,21 @@
 - 본문 일반값 KoPubWorld돋움체 Medium11.5pt/장평100/자간-10/LEFT/160%.
   번호·머리말·기호는 역할별. native HYhwpEQ1100 기준, 축소 예외는 위치·크기·
   가독성·source script 해시가 필요하다. 설치명만 있거나 PDF에 한 번 등장했다고
-  전체 역할 폰트 PASS 금지. 대체는 KOPUB_FONT_NOT_ACTIVE.
+  전체 역할 폰트 PASS 금지. 본문/문제번호/선택지/조건상자/표/정답/풀이/미주/
+  머리말의 각 역할에 대해 HWPX charPr·paraPr → HWP COM readback → PDF span
+  (실제 글꼴·크기·좌표·render hash) 연결이 있어야 한다. 대체는
+  KOPUB_FONT_NOT_ACTIVE.
 - 보기 3+2는 탭·개체 기하로 재현. 공백 반복 정렬 금지. 긴 보기/분수/표 예외 기록.
+  3+2가 수식 폭을 줄이거나 겹치게 만드는 경우에는 같은 대상 HWP/HWPX/PDF 해시,
+  실제 다섯 표식 좌표, compact 2+1+2 기하, 원인과 crop을 가진 명시적 예외만 허용한다.
+  임의의 2+1+2 또는 과거 교재 예외를 새 자료에 적용하지 않는다.
 - 제목과 본문이 같은 paraPr를 사용할 수 있다. **paraPr만으로 제목을 제거하지
   않는다.** 해시로 식별된 본문 외 블록만 제외한다. 복사 제목에서 secPr/머리말
   제어를 다시 복제하지 않는다. 중복 머리말 개체는 실제 HWP 열기 실패를 일으킬 수 있다.
 - 원본 머리말 이미지의 과목명까지 확인. 기준본에서는 위치/배치만 재사용한다.
+  raw source asset hash → deterministic crop/derivation → target masterpage asset
+  → HWP/HWPX 재열림 asset → PDF top-band raster까지 연결한다. 이미지 내 과목명·
+  위치·크기·여백이 실제 렌더에서 맞지 않으면 PASS하지 않는다.
   모든 문항 먼저 → 다음 새 물리 페이지부터 정답·전체 풀이 native 미주.
   마지막 본문 개체와 첫 note 개체 쪽을 각각 측정한다. 제목쪽-1 역산 금지.
 - 생성 정답 표제의 고아 배치, 다음 단원 정보 표의 미주 혼입, 마지막 빈 쪽도 검사.
@@ -102,6 +145,14 @@ workspace/endnote_order/com_roundtrip/whole_question_transfer/visual_qa.
 300dpi 렌더, 자동 기하 QA, 사람이 본 페이지는 각각 별도 원장으로 기록한다.
 한 분야의 검사 미완료를 다른 분야 PASS로 대신하지 않는다. 기존 책의 사용자
 수용/FINAL 보고서와 이번 재사용 패키지 시험 판정은 별개다.
+
+원본의 인쇄 문항번호는 단원마다 재시작할 수 있으므로, 그것을 PDF marker의 전역
+순번으로 사용하지 않는다. source inventory는 고유 item ID와 원래 인쇄번호의
+대응을 보존하고, 재조판 PDF의 marker 순서는 현재 target HWPX의 실제 native
+endnote reference 1..N에서 읽는다. main story 끝은 제목 위치나 과거 페이지 상수가
+아닌, 실제 PDF에서 처음 나타나는 paired `정답:`·`해설:` native-endnote label로
+물리 측정한다. HWP/HWPX GUI PageCount와 각 B4 PDF PageCount가 다르면 그 차이를
+COM evidence의 OPEN으로 남긴다.
 
 ## 5. 재사용 이력과 한계
 
