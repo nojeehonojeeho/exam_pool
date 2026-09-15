@@ -75,7 +75,8 @@ def trim_terminal_endnote_blank_paragraphs(section, *, max_removals=1):
     notes=section.xpath('.//p:endNote',namespaces=NS)
     if not notes or not max_removals:
         return 0
-    sublists=notes[-1].xpath('./p:subList|.//p:subList',namespaces=NS)
+    # Nested table-cell sublists are content, not the note's terminal body.
+    sublists=notes[-1].xpath('./p:subList',namespaces=NS)
     if not sublists:
         return 0
 
@@ -94,7 +95,7 @@ def trim_terminal_endnote_blank_paragraphs(section, *, max_removals=1):
     for sublist in reversed(sublists):
         while removed<max_removals:
             paragraphs=[node for node in list(sublist) if E.QName(node).localname=='p']
-            if not paragraphs or not is_blank_terminal_paragraph(paragraphs[-1]):
+            if len(paragraphs)<=1 or not is_blank_terminal_paragraph(paragraphs[-1]):
                 return removed
             sublist.remove(paragraphs[-1])
             removed+=1

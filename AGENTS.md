@@ -1,5 +1,10 @@
 # ExamPool — 프로젝트 규칙 (AGENTS.md)
 
+편집 가능한 원본 HWP의 교사 부교재 제작·미주 또는 워크플로 인계는
+`docs/TEACHER_NATIVE_WORKFLOW.md`를 진입점으로 사용한다. template_only와
+append_to_teacher를 구분한다. native staging 뒤 재조판 어댑터를 임의의
+원시 HWP 범용 자동 변환기로 오인하지 않는다.
+
 ## 수학 PDF 변환·미주: v12 기본 진입점
 
 다음 수학 PDF→편집 가능한 한글→native 미주 작업은 먼저

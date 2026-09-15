@@ -1,5 +1,9 @@
 # 수학 PDF → 편집형 한글 → 네이티브 미주: v12 수준 단일 요청 기본 작업지시서
 
+이미 편집 가능한 원본 HWP의 교사 서식 재사용은
+[TEACHER_NATIVE_WORKFLOW.md](TEACHER_NATIVE_WORKFLOW.md)의 입력 계약과
+대표 재현 절차를 적용한다. PDF/OCR 분기와 혼동하지 않는다.
+
 문서 ID: `math-pdf-native-hwp-v12` · 버전 `1.0.0` · 2026-09-13
 
 [공통 실행 원칙](USER_INTENT_EXECUTION_DEFAULT.md)을 적용한다. 이 문서는 최초

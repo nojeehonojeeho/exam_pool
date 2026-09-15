@@ -1,5 +1,9 @@
 # 네이티브 미주 문서 순서·문서 분리 정책
 
+새 교재의 재사용 경로는 [Native HWP 절차](TEACHER_NATIVE_WORKFLOW.md)를 따른다.
+문서 끝 배치 설정만으로 실제 물리 경계, 정답 표제의 고아 배치, whole-question
+복사·이동을 통과시키지 않는다. 새 대상 해시의 독립 증거가 필요하다.
+
 이 문서는 PDF→HWP/HWPX 작업에서 문제 본문, 해설, 네이티브 미주를 재사용할 때의
 공통 계약이다. 공통 실행 원칙은
 [사용자 의도 기반 실행 기본값](USER_INTENT_EXECUTION_DEFAULT.md)을 적용하며,

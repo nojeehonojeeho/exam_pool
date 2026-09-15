@@ -1,5 +1,10 @@
 # HWP COM 자동화 파일 접근 승인 보안 기준
 
+교사 부교재 재사용 시험의 실행 진입은 [Native HWP 절차](TEACHER_NATIVE_WORKFLOW.md)
+§2를 따른다. `tools/teacher_workflow_com.py`는 공통 보안 생성 헬퍼와 외부
+단계 deadline, 작업자 간 공유 lease, 소유 PID 정상 종료를 사용한다. lease를
+사용하지 않는 과거 실행기까지 자동으로 직렬화한다고 가정하지 않는다.
+
 공통 실행 기본값은 [사용자 의도 기반 실행 기본값](USER_INTENT_EXECUTION_DEFAULT.md)을
 적용한다. COM 자동화 요청은 보안·직렬·실패 종료 게이트를 지키면서 실제 검증까지 진행한다.
 

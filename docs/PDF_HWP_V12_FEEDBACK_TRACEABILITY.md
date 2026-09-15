@@ -1,5 +1,9 @@
 # 최초 요청부터 v12까지: 요구·실패·재발 방지 추적표
 
+이미 편집 가능한 HWP의 후속 교사 부교재 요구·실패는
+[Native HWP 추적 원장](TEACHER_NATIVE_TRACEABILITY.md)으로 연결한다.
+이 표의 과거 항목을 새 실행의 검증 완료 증거로 자동 승계하지 않는다.
+
 2026-09-13 · 기준 `math-pdf-native-hwp-v12/1.0.0`
 
 [공통 실행 원칙](USER_INTENT_EXECUTION_DEFAULT.md)과
