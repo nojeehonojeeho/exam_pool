@@ -162,7 +162,10 @@ workspace/endnote_order/com_roundtrip/whole_question_transfer/visual_qa.
 endnote reference 1..N에서 읽는다. main story 끝은 제목 위치나 과거 페이지 상수가
 아닌, 실제 PDF에서 처음 나타나는 paired `정답:`·`해설:` native-endnote label로
 물리 측정한다. HWP/HWPX GUI PageCount와 각 B4 PDF PageCount가 다르면 그 차이를
-COM evidence의 OPEN으로 남긴다.
+삭제하거나 같은 값으로 고쳐 쓰지 않는다. HWP와 HWPX target을 각각 새 COM 세션에서
+재열고, 모든 실제 B4 PDF가 같은 양의 쪽수·동일한 target-pair 검증을 통과한 경우에만
+그 GUI counter 차이는 `gui_page_count_warning_nonphysical`으로 보존한다. B4 PDF의
+물리 쪽수 차이, target pair 재열림 누락, 보안/종료 실패는 여전히 COM evidence OPEN이다.
 
 ## 5. 재사용 이력과 한계
 

@@ -9,6 +9,30 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from app.teacher_workflow import Package,P,NS,payload,file_hash,write_json
 
+
+def classify_roundtrip_pages(sessions):
+    """Keep GUI PageCount warnings separate from printed B4 document parity.
+
+    Hanword can expose an HWPX in-memory page counter that differs from its
+    own physical B4 export.  The discrepancy is always retained in evidence;
+    it becomes non-blocking only when every serially reopened B4 PDF has the
+    same positive physical page count.  A physical-output mismatch remains a
+    hard release blocker.
+    """
+    exported=[row for row in sessions if isinstance(row.get('b4_pdf'),dict)]
+    physical=[row['b4_pdf'].get('pages') for row in exported]
+    physical_ok=bool(physical) and all(isinstance(page,int) and page>0 for page in physical) and len(set(physical))==1
+    gui_divergences=[row for row in exported if row.get('gui_pages') != row.get('b4_pdf',{}).get('pages')]
+    return {
+        'physical_b4_page_count_match':physical_ok,
+        'physical_b4_page_counts':physical,
+        'gui_page_count_divergences':[{
+            'input':row.get('input'),'gui_pages':row.get('gui_pages'),
+            'pdf_pages':row.get('b4_pdf',{}).get('pages'),
+        } for row in gui_divergences],
+        'gui_page_count_warning_nonphysical':bool(gui_divergences) and physical_ok,
+    }
+
 def arguments():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--input',type=Path,required=True);p.add_argument('--out',type=Path,required=True)
@@ -218,13 +242,18 @@ def worker(a):
             if not all(item['payload_equal'] and item['native_clipboard_ready'] for item in transfers):raise RuntimeError('TRANSFER_PAYLOAD_OR_NATIVE_CLIPBOARD_MISMATCH')
         report['source_unchanged']=file_hash(a.input)==report['source_sha256']
         if not report['source_unchanged']:raise RuntimeError('SOURCE_CHANGED_DURING_COM')
-        divergences = [row for row in report['sessions'] if 'b4_pdf' in row and row.get('gui_pdf_page_count_match') is not True]
-        report['page_count_divergences'] = [{
-            'input': row['input'], 'gui_pages': row.get('gui_pages'),
-            'pdf_pages': row.get('b4_pdf', {}).get('pages'),
-        } for row in divergences]
-        report['status'] = ('COM_OPERATIONS_REVIEW_REQUIRED_PAGE_COUNT_DIVERGENCE'
-                            if divergences else 'COM_OPERATIONS_PASS_REQUIRES_PAYLOAD_QA')
+        if a.transfer is None and not a.transfer_all:
+            page_classification=classify_roundtrip_pages(report['sessions'])
+            report.update(page_classification)
+            report['page_count_divergences']=page_classification['gui_page_count_divergences']
+            report['status'] = ('COM_OPERATIONS_PASS_REQUIRES_PAYLOAD_QA'
+                                if page_classification['physical_b4_page_count_match']
+                                else 'COM_OPERATIONS_REVIEW_REQUIRED_PHYSICAL_PAGE_COUNT_DIVERGENCE')
+        else:
+            # Clipboard transfer has its own readback evidence; it does not
+            # create B4 PDFs and must not be rejected merely for omitting a
+            # roundtrip-only physical-page observation.
+            report['status']='COM_OPERATIONS_PASS_REQUIRES_PAYLOAD_QA'
     except Exception as e:
         report['error']=repr(e)
         # A native clipboard failure is a specific, reproducible release

@@ -78,7 +78,11 @@ def main() -> int:
         reports[kind] = report
     com = load(a.com)
     sessions = com.get("sessions", [])
-    com_ok = com.get("status", "").startswith("COM_OPERATIONS_PASS") and bool(sessions) and all(row.get("register_module_return") is True and not row.get("approval_windows") and not row.get("owned_pids_remaining") for row in sessions)
+    com_ok = (com.get("status", "").startswith("COM_OPERATIONS_PASS")
+              and com.get("target_sha256") == target
+              and com.get("physical_b4_page_count_match") is True
+              and bool(sessions)
+              and all(row.get("register_module_return") is True and not row.get("approval_windows") and not row.get("owned_pids_remaining") for row in sessions))
     reports["com_roundtrip"] = base("com_roundtrip", target, scope, status="PASS" if com_ok else "REVIEW_REQUIRED",
         checks={"serial_save_reopen_and_b4_export": com_ok, "security_module_and_no_approval": com_ok, "owned_processes_exited": com_ok},
         open_items=[] if com_ok else [{"kind": "COM_ROUNDTRIP_NOT_CLOSED", "error": com.get("error") or com.get("shutdown_error")}], artifact=a.com)
