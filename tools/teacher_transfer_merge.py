@@ -63,6 +63,12 @@ def merge(scope: list[str], target_sha256: str, reports: list[tuple[Path, dict]]
     merged_sessions: list[dict] = []
     artifacts: list[dict] = []
     for path, report in reports:
+        # A worker can sometimes finish after its supervisor has returned a
+        # deadline failure.  Those late artifacts are useful for diagnosis,
+        # but they are not a clean serial-COM proof and must never enter a
+        # FINAL transfer ledger.
+        if (path.parent / "timeout.json").is_file():
+            raise ValueError("TRANSFER_SEGMENT_DEADLINE_EXCEEDED:" + str(path))
         if report.get("source_sha256") != target_sha256:
             raise ValueError("TRANSFER_SEGMENT_TARGET_MISMATCH:" + str(path))
         if not report.get("status", "").startswith("COM_OPERATIONS_PASS"):

@@ -42,3 +42,11 @@ def test_merge_rejects_missing_or_not_ready_native_record(tmp_path):
     path = tmp_path / "bad.json"; path.write_text(json.dumps(report))
     with pytest.raises(ValueError, match="TRANSFER_ROW_NOT_CLOSED"):
         merge(["q1"], file_hash(source), [(path, report)])
+
+
+def test_merge_rejects_late_artifact_after_supervisor_deadline(tmp_path):
+    source, report = segment(tmp_path, ["q1"])
+    path = tmp_path / "late.json"; path.write_text(json.dumps(report))
+    (tmp_path / "timeout.json").write_text('{"status":"COM_DEADLINE_EXCEEDED"}')
+    with pytest.raises(ValueError, match="TRANSFER_SEGMENT_DEADLINE_EXCEEDED"):
+        merge(["q1"], file_hash(source), [(path, report)])
