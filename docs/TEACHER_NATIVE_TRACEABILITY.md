@@ -47,3 +47,12 @@ anchor만copy, 제목쪽-1 역산, 고정수치·예외횟수 PASS, 무한 COM �
 폰트/그림·수식 가독성 전수 증거, 첫 그림 해설 표제의 단 분리 일반해법,
 이번에 열람하지 않은 과거 대화/첨부 개별 요구. 기존45+추가28 밖의 요구는
 새 ID와 구현·검사를 연결한다.
+
+## 2026-09-15 representative v2 closure
+
+`26054-0027`의 첫 해설 그림/정답 제목 단 분리는 paragraph-only break 속성으로
+해결되지 않았다. 실제 COM/B4 렌더에서 확인된 item-scoped picture-before-label
+보정만 대표 증거로 인정한다. `source_scope`와 `source_payload`는 선택 12개
+범위와 hash-bound metadata correction에 한해 닫히며, 이를 전체 교재 closure로
+승계하지 않는다. 역할별 font/style와 전 문항 workspace가 닫히지 않으면 gate는
+계속 BLOCKED다.
