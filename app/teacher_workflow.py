@@ -248,6 +248,61 @@ def build(config,config_base):
     if note_column_starts:
         proof=config['layout_exception_evidence']
         if file_hash(base/proof['path'])!=proof['sha256']:raise ValueError('LAYOUT_EXCEPTION_EVIDENCE_HASH')
+    note_keep_with_next=set(config.get('note_keep_with_next_item_ids',[]))
+    if not note_keep_with_next<=set(selected):raise ValueError('LAYOUT_EXCEPTION_OUTSIDE_SELECTION')
+    note_page_break_before=set(config.get('note_page_break_before_item_ids',[]))
+    if not note_page_break_before<=set(selected):raise ValueError('LAYOUT_EXCEPTION_OUTSIDE_SELECTION')
+    note_spacer_before=set(config.get('note_spacer_before_item_ids',[]))
+    if not note_spacer_before<=set(selected):raise ValueError('LAYOUT_EXCEPTION_OUTSIDE_SELECTION')
+    spacer_percent=config.get('note_spacer_line_spacing_percent',1000)
+    if type(spacer_percent) is not int or spacer_percent<100:raise ValueError('NOTE_SPACER_PERCENT_INVALID')
+    note_image_before_label=set(config.get('note_image_before_label_item_ids',[]))
+    if not note_image_before_label<=set(selected):raise ValueError('LAYOUT_EXCEPTION_OUTSIDE_SELECTION')
+    para_clone_cache={}
+    spacer_clone_cache={}
+    def apply_keep_with_next(paragraph, page_break_before=False):
+        source_id=paragraph.get('paraPrIDRef')
+        if source_id is None:return
+        if source_id in para_clone_cache:
+            paragraph.set('paraPrIDRef',para_clone_cache[source_id])
+            if page_break_before:
+                clone=p.catalogs['paraPr'][para_clone_cache[source_id]]
+                setting=next((x for x in clone.iter() if E.QName(x).localname=='breakSetting'),None)
+                if setting is None:raise ValueError('BREAK_SETTING_MISSING')
+                setting.set('pageBreakBefore','1')
+            return
+        source=p.catalogs['paraPr'].get(source_id)
+        if source is None:raise ValueError('UNKNOWN_NOTE_PARAPR:'+str(source_id))
+        clone=copy.deepcopy(source)
+        container=next((parent for parent in p.header.iter() if source in list(parent)),None)
+        if container is None:raise ValueError('PARAPR_CONTAINER_MISSING')
+        next_id=str(max([int(x) for x in p.catalogs['paraPr'] if str(x).isdigit()] or [0])+1+len(para_clone_cache));clone.set('id',next_id)
+        setting=next((x for x in clone.iter() if E.QName(x).localname=='breakSetting'),None)
+        if setting is None:raise ValueError('BREAK_SETTING_MISSING')
+        setting.set('keepWithNext','1');setting.set('keepLines','1')
+        if page_break_before:setting.set('pageBreakBefore','1')
+        container.append(clone);p.catalogs['paraPr'][next_id]=clone;para_clone_cache[source_id]=next_id;paragraph.set('paraPrIDRef',next_id)
+    def insert_note_spacer(sublist, first_paragraph):
+        source_id=first_paragraph.get('paraPrIDRef')
+        if source_id is None:raise ValueError('UNKNOWN_NOTE_PARAPR')
+        key=(source_id,spacer_percent)
+        next_id=spacer_clone_cache.get(key)
+        if next_id is None:
+            source=p.catalogs['paraPr'].get(source_id)
+            if source is None:raise ValueError('UNKNOWN_NOTE_PARAPR:'+str(source_id))
+            clone=copy.deepcopy(source)
+            container=next((parent for parent in p.header.iter() if source in list(parent)),None)
+            if container is None:raise ValueError('PARAPR_CONTAINER_MISSING')
+            next_id=str(max([int(x) for x in p.catalogs['paraPr'] if str(x).isdigit()] or [0])+1+len(para_clone_cache)+len(spacer_clone_cache));clone.set('id',next_id)
+            line=next((x for x in clone.iter() if E.QName(x).localname=='lineSpacing'),None)
+            if line is None:
+                line=E.Element(H('lineSpacing'));clone.append(line)
+            line.set('type','PERCENT');line.set('value',str(spacer_percent));line.set('unit','HWPUNIT')
+            container.append(clone);p.catalogs['paraPr'][next_id]=clone;spacer_clone_cache[key]=next_id
+        spacer=E.Element(P('p'),paraPrIDRef=next_id,styleIDRef=first_paragraph.get('styleIDRef','0'),pageBreak='0',columnBreak='0',merged='0')
+        run=E.SubElement(spacer,P('run'),charPrIDRef=first_paragraph.find(P('run')).get('charPrIDRef','0') if first_paragraph.find(P('run')) is not None else '0')
+        E.SubElement(run,P('t')).text=''
+        sublist.insert(0,spacer)
     # Explicit source-owned header manifest; package-wide image1 substitution is forbidden.
     header=config['header']
     all_master_imgs=[]
@@ -322,9 +377,50 @@ def build(config,config_base):
             br=E.Element(P('run'),charPrIDRef=body_char);E.SubElement(E.SubElement(br,P('t')),P('lineBreak'))
             for pos,r in enumerate(lead+[br]):first.insert(pos,r)
             first.set('paraPrIDRef',label.get('paraPrIDRef'));body.remove(label)
-            for pos in first.findall('.//'+P('pic')+'/'+P('pos')):
-                if pos.get('treatAsChar')=='1':pos.set('affectLSpacing','1')
+            for pic in first.findall('.//'+P('pic')):
+                for pos in pic.iter():
+                    if E.QName(pos).localname=='pos' and pos.get('treatAsChar')=='1':pos.set('affectLSpacing','1')
         if item_id in note_column_starts:note.find(P('subList')+'/'+P('p')).set('columnBreak','1')
+        if item_id in note_keep_with_next or item_id in note_page_break_before:
+            apply_keep_with_next(note.find(P('subList')+'/'+P('p')), page_break_before=item_id in note_page_break_before)
+        if item_id in note_spacer_before:
+            sublist=note.find(P('subList'));first_note_p=sublist.find(P('p'))
+            if first_note_p is None:raise ValueError('NOTE_BODY_MISSING')
+            insert_note_spacer(sublist,first_note_p)
+        if item_id in note_image_before_label:
+            sublist=note.find(P('subList'));paragraphs=list(sublist.findall(P('p')))
+            if len(paragraphs)<2:
+                if not any(E.QName(n).localname=='pic' for n in sublist.iter()):raise ValueError('NOTE_BODY_MISSING')
+            else:
+                first_note_p,source_p=paragraphs[:2]
+                first_run=first_note_p.find(P('run'))
+                if first_run is None:raise ValueError('NOTE_BODY_MISSING')
+                pics=[node for node in source_p.iter() if E.QName(node).localname=='pic']
+                if not pics:raise ValueError('NOTE_IMAGE_NOT_FOUND')
+                for pic in pics:
+                    parent=pic.getparent();parent.remove(pic);first_run.insert(0,pic)
+        note_page_starts=set(config.get('note_page_start_item_ids',[]))
+        if item_id in note_page_starts:
+            # A native page break on the first note paragraph is the only
+            # accepted stronger fallback for a title/figure pair that cannot
+            # be kept in one column.  It is validated by COM/B4 render.
+            note.find(P('subList')+'/'+P('p')).set('pageBreak','1')
+        if item_id in set(config.get('inline_note_images_item_ids',[])):
+            # Some Hanword builds float a treat-as-character figure from the
+            # remaining column while leaving its generated answer label behind.
+            # Normalize only the explicitly evidenced item; payload/script is
+            # unchanged and the B4 render remains the deciding evidence.
+            for pic in note.findall('.//'+P('pic')):
+                pic.set('textWrap','NONE')
+                for pos in pic.iter():
+                    if E.QName(pos).localname!='pos':continue
+                    pos.set('treatAsChar','1');pos.set('flowWithText','1');pos.set('affectLSpacing','1')
+        if item_id in set(config.get('note_image_para_anchor_item_ids',[])):
+            for pic in note.findall('.//'+P('pic')):
+                for pos in pic.iter():
+                    if E.QName(pos).localname!='pos':continue
+                    pos.set('treatAsChar','1');pos.set('flowWithText','1');pos.set('affectLSpacing','1')
+                    pos.set('vertRelTo','PARA');pos.set('horzRelTo','PARA');pos.set('vertAlign','TOP');pos.set('horzAlign','LEFT')
         expected.append({'id':item_id,'body':payload(p,nodes),'note':payload(p,list(note),omit_notes=False)})
         generated.extend(nodes)
         plan.append({'id':item_id,'slot':slot+1,'page_group':page,'cached_height':height,'physical_qa':'REQUIRED'})
@@ -353,6 +449,14 @@ def build(config,config_base):
     report['note_exclusions']=exclusion_changes
     report['joined_generated_note_labels']=bool(config.get('join_generated_note_label'))
     report['note_column_start_item_ids']=note_column_starts
+    report['note_keep_with_next_item_ids']=sorted(note_keep_with_next)
+    report['note_page_break_before_item_ids']=sorted(note_page_break_before)
+    report['note_spacer_before_item_ids']=sorted(note_spacer_before)
+    report['note_spacer_line_spacing_percent']=spacer_percent
+    report['note_image_before_label_item_ids']=sorted(note_image_before_label)
+    report['note_page_start_item_ids']=sorted(set(config.get('note_page_start_item_ids',[])))
+    report['inline_note_images_item_ids']=sorted(set(config.get('inline_note_images_item_ids',[])))
+    report['note_image_para_anchor_item_ids']=sorted(set(config.get('note_image_para_anchor_item_ids',[])))
     write_json(out.with_suffix('.build.json'),report)
     return report
 

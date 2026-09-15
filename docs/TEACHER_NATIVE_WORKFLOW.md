@@ -114,3 +114,16 @@ workspace/endnote_order/com_roundtrip/whole_question_transfer/visual_qa.
 keepWithNext/columnBreak 속성을 넣었다는 이유로 해결 판정하지 않는다.
 `note_column_start_item_ids`는 실험용 후보 보정이며 실제 렌더 통과 증거가 없는
 한 재사용 기본값으로 삼지 않는다. 알려진 미해결 배치는 visual_qa의 open_items로 남긴다.
+# Representative endnote layout repair (2026-09-15)
+
+The representative gate found that paragraph-only `keepWithNext`, `keepLines`,
+`columnBreak`, and spacer adjustments do not reliably control a floating
+explanation figure after HWP COM round-trip. They must not be recorded as a
+PASS merely because the XML contains those flags. For a confirmed item-level
+repair, the bounded adapter may move the first native explanation picture into
+the first explanation paragraph/run (`note_image_before_label_item_ids`) while
+preserving the source payload and native endnote relationship. The repair is
+valid only after serial HWP/HWPX save-close-reopen, physical B4 rendering, and
+manual inspection of the affected page. This is an item-scoped exception, not
+a global reorder rule; if the rendered title/figure relationship is not
+verified, the gate remains BLOCKED.

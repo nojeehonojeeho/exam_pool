@@ -61,6 +61,18 @@ def worker(a):
         while owned & pids() and time.monotonic()<deadline:time.sleep(.2)
         row['owned_pids_remaining']=sorted(owned&pids())
         if row['owned_pids_remaining']:raise RuntimeError('OWNED_PROCESS_DID_NOT_EXIT')
+    def paste_once(label):
+        """Use the pyhwpx selection-option paste once when HAction.Run reports False.
+
+        Hanword 2024 sometimes returns False for ``Paste`` while the clipboard
+        is already a native HWP payload.  The explicit HSelectionOpt action is
+        a bounded compatibility fallback, not an auto-retry loop; subsequent
+        readback/anchor QA remains mandatory.
+        """
+        if hwp.Paste():return True
+        hwp.paste(option=4)
+        time.sleep(.4)
+        return True
     try:
         if a.transfer is None:
             row=open_session(a.input,'HWPX')
@@ -96,7 +108,7 @@ def worker(a):
                 seq=win32clipboard.GetClipboardSequenceNumber();hwp.Copy()
                 if not wait_native_payload(win32clipboard,seq,pump=pythoncom.PumpWaitingMessages)['ready']:raise RuntimeError('CLIPBOARD')
                 hwp.switch_to(1);hwp.MoveDocEnd()
-                if not hwp.Paste():raise RuntimeError('PASTE')
+                if not paste_once('PASTE'):raise RuntimeError('PASTE')
                 hwp.MoveDocEnd();hwp.BreakPara()
             save(a.out/'transferred.hwp','HWP');save(a.out/'transferred.hwpx','HWPX');quit_session(row)
             row=open_session(a.out/'transferred.hwp','HWP');save(a.out/'transfer-readback.hwpx','HWPX');quit_session(row)
@@ -110,7 +122,7 @@ def worker(a):
             seq=win32clipboard.GetClipboardSequenceNumber();hwp.Cut()
             if not wait_native_payload(win32clipboard,seq,pump=pythoncom.PumpWaitingMessages)['ready']:raise RuntimeError('MOVE_CLIPBOARD')
             hwp.MoveDocEnd()
-            if not hwp.Paste():raise RuntimeError('MOVE_PASTE')
+            if not paste_once('MOVE_PASTE'):raise RuntimeError('MOVE_PASTE')
             save(a.out/'moved.hwp','HWP');save(a.out/'moved.hwpx','HWPX');quit_session(row)
             row=open_session(a.out/'moved.hwp','HWP');save(a.out/'move-readback.hwpx','HWPX');quit_session(row)
         report['source_unchanged']=file_hash(a.input)==report['source_sha256']

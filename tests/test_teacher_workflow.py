@@ -10,7 +10,9 @@ def fixture(tmp_path,count=4):
     fonts=E.SubElement(refs,H('fontfaces'));ff=E.SubElement(fonts,H('fontface'),lang='HANGUL');E.SubElement(ff,H('font'),id='0',face='KoPubWorld돋움체 Medium')
     chars=E.SubElement(refs,H('charProperties'));c=E.SubElement(chars,H('charPr'),id='0',height='1150');E.SubElement(c,H('fontRef'),hangul='0')
     paras=E.SubElement(refs,H('paraProperties'))
-    for i in range(3):E.SubElement(paras,H('paraPr'),id=str(i),role=['body','workspace','heading'][i])
+    for i in range(3):
+        pp=E.SubElement(paras,H('paraPr'),id=str(i),role=['body','workspace','heading'][i])
+        E.SubElement(pp,H('breakSetting'))
     styles=E.SubElement(refs,H('styles'));E.SubElement(styles,H('style'),id='0',paraPrIDRef='0',charPrIDRef='0')
     borders=E.SubElement(refs,H('borderFills'));b=E.SubElement(borders,H('borderFill'),id='1');E.SubElement(b,H('leftBorder'),type='SOLID')
     sec=E.Element(P('sec'));ctrl=E.SubElement(E.SubElement(E.SubElement(sec,P('p'),paraPrIDRef='0',styleIDRef='0'),P('run'),charPrIDRef='0'),P('secPr'))
@@ -19,7 +21,9 @@ def fixture(tmp_path,count=4):
     for i in range(count):
         p=E.SubElement(sec,P('p'),paraPrIDRef='0',styleIDRef='0');r=E.SubElement(p,P('run'),charPrIDRef='0');E.SubElement(r,P('t')).text=f'Question {i+1} '
         note=E.SubElement(E.SubElement(r,P('ctrl')),P('endNote'),number=str(i+1));sub=E.SubElement(note,P('subList'))
-        n=E.SubElement(sub,P('p'),paraPrIDRef='0',styleIDRef='0');E.SubElement(E.SubElement(n,P('run'),charPrIDRef='0'),P('t')).text=f'Answer {i+1}'
+        n=E.SubElement(sub,P('p'),paraPrIDRef='0',styleIDRef='0');rr=E.SubElement(n,P('run'),charPrIDRef='0');E.SubElement(rr,P('t')).text=f'Answer {i+1}'
+        if i==0:
+            pic=E.SubElement(rr,P('pic'));E.SubElement(pic,f'{{{HC}}}img',binaryItemIDRef='asset');E.SubElement(pic,f'{{{HC}}}pos',treatAsChar='0')
         eq=E.SubElement(r,P('equation'),baseUnit='1100',font='HYhwpEQ');E.SubElement(eq,P('script')).text='x^2 + 1'
         sp=E.SubElement(sec,P('p'),paraPrIDRef='1',styleIDRef='0');E.SubElement(E.SubElement(sp,P('run'),charPrIDRef='0'),P('t'))
     master=E.Element(P('masterPage'));E.SubElement(master,f'{{{HC}}}img',binaryItemIDRef='asset')
@@ -170,3 +174,45 @@ def test_com_transfer_invalid_selection_before_open(indices):
 def test_com_transfer_valid_selection():
     from tools.teacher_workflow_com import validate_transfer_selection
     validate_transfer_selection([2,0,1],3)
+
+def test_note_page_start_is_explicit_and_bound(tmp_path):
+    cfg=configuration(tmp_path);cfg['note_page_start_item_ids']=['id0']
+    result=build(cfg,tmp_path);out=Package(tmp_path/'result.hwpx');sec=next(iter(out.sections.values()))
+    starts=[n for n in sec if n.find('.//'+P('endNote')) is not None]
+    first=starts[0].find('.//'+P('endNote')+'/'+P('subList')+'/'+P('p'))
+    assert first.get('pageBreak')=='1' and result['note_page_start_item_ids']==['id0']
+
+def test_inline_note_image_normalization_is_explicit(tmp_path):
+    cfg=configuration(tmp_path);cfg['inline_note_images_item_ids']=['id0']
+    build(cfg,tmp_path);out=Package(tmp_path/'result.hwpx');sec=next(iter(out.sections.values()))
+    pic=next(n for n in sec.iter() if E.QName(n).localname=='pic')
+    pos=next(n for n in pic.iter() if E.QName(n).localname=='pos')
+    assert pic.get('textWrap')=='NONE' and pos.get('treatAsChar')=='1'
+
+def test_note_image_para_anchor_is_explicit(tmp_path):
+    cfg=configuration(tmp_path);cfg['note_image_para_anchor_item_ids']=['id0']
+    build(cfg,tmp_path);out=Package(tmp_path/'result.hwpx');sec=next(iter(out.sections.values()))
+    pos=next(n for n in sec.iter() if E.QName(n).localname=='pos')
+    assert pos.get('horzRelTo')=='PARA' and pos.get('vertRelTo')=='PARA'
+
+def test_note_keep_with_next_clones_break_style(tmp_path):
+    cfg=configuration(tmp_path);cfg['join_generated_note_label']=False;cfg['note_keep_with_next_item_ids']=['id0']
+    build(cfg,tmp_path);out=Package(tmp_path/'result.hwpx');sec=next(iter(out.sections.values()));first=next(n for n in sec if n.find('.//'+P('endNote')) is not None).find('.//'+P('endNote')+'/'+P('subList')+'/'+P('p'))
+    para=out.catalogs['paraPr'][first.get('paraPrIDRef')];setting=next(x for x in para.iter() if E.QName(x).localname=='breakSetting')
+    assert setting.get('keepWithNext')=='1' and setting.get('keepLines')=='1'
+
+def test_note_page_break_before_clones_break_style(tmp_path):
+    cfg=configuration(tmp_path);cfg['join_generated_note_label']=False;cfg['note_page_break_before_item_ids']=['id0']
+    build(cfg,tmp_path);out=Package(tmp_path/'result.hwpx');sec=next(iter(out.sections.values()));first=next(n for n in sec if n.find('.//'+P('endNote')) is not None).find('.//'+P('endNote')+'/'+P('subList')+'/'+P('p'))
+    para=out.catalogs['paraPr'][first.get('paraPrIDRef')];setting=next(x for x in para.iter() if E.QName(x).localname=='breakSetting')
+    assert setting.get('keepWithNext')=='1' and setting.get('keepLines')=='1' and setting.get('pageBreakBefore')=='1'
+
+def test_note_spacer_before_adds_explicit_layout_paragraph(tmp_path):
+    cfg=configuration(tmp_path);cfg['note_spacer_before_item_ids']=['id0'];cfg['note_spacer_line_spacing_percent']=1200
+    build(cfg,tmp_path);out=Package(tmp_path/'result.hwpx');sec=next(iter(out.sections.values()));note=next(n for n in sec if n.find('.//'+P('endNote')) is not None).find('.//'+P('endNote'));sub=note.find(P('subList'));first=sub.find(P('p'))
+    assert first.get('paraPrIDRef')!=sub.findall(P('p'))[1].get('paraPrIDRef')
+
+def test_note_image_before_label_moves_native_picture(tmp_path):
+    cfg=configuration(tmp_path);cfg['join_generated_note_label']=False;cfg['note_image_before_label_item_ids']=['id0']
+    build(cfg,tmp_path);out=Package(tmp_path/'result.hwpx');sec=next(iter(out.sections.values()));note=next(n for n in sec if n.find('.//'+P('endNote')) is not None).find('.//'+P('endNote'));sub=note.find(P('subList'));first=sub.find(P('p'))
+    assert any(E.QName(n).localname=='pic' for n in first.iter())
