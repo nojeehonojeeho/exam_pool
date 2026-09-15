@@ -34,6 +34,7 @@ PDF/OCR45개는 [V12-01~45](PDF_HWP_V12_FEEDBACK_TRACEABILITY.md)를 승계한�
 | TW26 | 빈checks/고정수치 PASS → required schema | release_gate/test | stale hash도 차단 |
 | TW27 | 72dpi=전수 사람검수 → 증거 분리 | render/manual ledger | 본 쪽만 명시 |
 | TW28 | dirty 무차별commit/교재공개 → 분리 | worktree/snapshot | exact staging |
+| TW29 | 장시간 native clipboard 고착 → 격리 segment+정확 원장 병합 | COM/payload/merge | ID별 copy+move·bytes·readback·종료 검사 |
 
 ## SUPERSEDED
 

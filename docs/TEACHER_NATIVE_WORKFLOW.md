@@ -96,6 +96,16 @@
    이 과정에서 생긴 source/destination 탭은 저장 뒤 모두 `Close(isDirty=False)`로
    정상 닫고, 남은 소유 PID가 있으면 강제 종료하지 않은 채 `OWNED_PROCESS_DID_NOT_EXIT`
    로 차단한다.
+
+   긴 범위에서 Windows clipboard가 특정 세션의 `OpenClipboard` 접근 거부로 중단되면
+   같은 HWP 세션에서 계속 반복하지 않는다. 실패한 **동일 범위**는 저장·정상 종료 후
+   새 격리 세션에서 한 번만 재시험한다. 그 재시험이 성공하고 나머지 범위가 정상이라면,
+   남은 source-owned ID는 짧은 새 격리 세션 묶음으로 직렬 처리할 수 있다. 각 묶음은
+   source hash, 실제 `Hwp Native` bytes, Copy/Move, payload readback, 보안 모듈,
+   approval window 0개, owned PID 종료를 모두 보관한다. 이후
+   `tools/teacher_transfer_merge.py`가 모든 묶음의 정확히 한 Copy+Move를 hash-bound
+   원장으로 합친다. 실패한 묶음, 중복/누락 ID, ready가 아닌 native clipboard record,
+   source hash 불일치, 남은 소유 PID는 합칠 수 없으며 FINAL을 차단한다.
 9. 대표 통과 후 같은 경로로 전체 적용. 변경 영향만 재검증. 별도 문제/풀이/
    통합은 같은 content revision에서 생성한다. 사용자가 통합만 요청하면2개,
    기본은 전체3역할 HWP/HWPX6개. QA·문항별 파일은 출고 폴더 밖에 둔다.

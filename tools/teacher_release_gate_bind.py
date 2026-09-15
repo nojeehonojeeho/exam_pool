@@ -106,7 +106,7 @@ def main() -> int:
         open_items=[] if visual_ok else [{"kind": "VISUAL_QA_REVIEW_REQUIRED"}], artifact=a.visual or a.audit,
         physical_page_count=physical, automated_pages=automated, human_reviewed_pages=human)
     transfer = load(a.transfer)
-    transfers = transfer.get("transfers", [])
+    raw_transfers = transfer.get("transfers", [])
     # Preserve raw Windows clipboard diagnostics independently from HWP's
     # own Cut/Paste implementation.  A changed clipboard sequence number or
     # a successful internal HWP action is not proof that ``Hwp Native`` bytes
@@ -119,12 +119,37 @@ def main() -> int:
     native_clipboard_ready = bool(native_clipboard_records) and all(
         record.get("record", {}).get("ready") is True for record in native_clipboard_records
     )
+    expected_pairs = {(item_id, operation) for item_id in scope for operation in ("copy", "move")}
+    normalized_transfers = []
+    for transfer_row in raw_transfers:
+        before = transfer_row.get("before_payload_sha256", transfer_row.get("source_payload_sha256"))
+        after = transfer_row.get("after_payload_sha256", transfer_row.get("readback_payload_sha256"))
+        raw_artifact = transfer_row.get("readback_artifact")
+        if isinstance(raw_artifact, dict):
+            artifact = raw_artifact
+        elif isinstance(raw_artifact, str) and Path(raw_artifact).is_file():
+            artifact = ref(Path(raw_artifact))
+        else:
+            artifact = None
+        normalized_transfers.append({
+            "id": transfer_row.get("id"), "operation": transfer_row.get("operation"),
+            "whole_question": transfer_row.get("whole_question"), "readback": transfer_row.get("readback"),
+            "payload_equal": transfer_row.get("payload_equal"),
+            "before_payload_sha256": before, "after_payload_sha256": after,
+            "readback_artifact": artifact,
+            "native_clipboard_ready": transfer_row.get("native_clipboard_ready"),
+        })
+    actual_pairs = {(row.get("id"), row.get("operation")) for row in normalized_transfers}
     source_matches_target = transfer.get("source_sha256") == target["hwp"]
     transfer_ok = (
         source_matches_target
         and transfer.get("status", "").startswith("COM_OPERATIONS_PASS")
-        and len(transfers) == len(scope) * 2
-        and all(row.get("whole_question") is True and row.get("readback") is True and row.get("payload_equal") is True for row in transfers)
+        and len(normalized_transfers) == len(scope) * 2
+        and actual_pairs == expected_pairs
+        and native_clipboard_ready
+        and all(row.get("whole_question") is True and row.get("readback") is True and row.get("payload_equal") is True
+                and row.get("native_clipboard_ready") is True and row.get("before_payload_sha256") == row.get("after_payload_sha256")
+                and isinstance(row.get("readback_artifact"), dict) for row in normalized_transfers)
     )
     reports["whole_question_transfer"] = base("whole_question_transfer", target, scope, status="PASS" if transfer_ok else "REVIEW_REQUIRED",
         checks={
@@ -141,7 +166,7 @@ def main() -> int:
             "native_clipboard_record_count": len(native_clipboard_records),
             "retry_policy": "one isolated new COM session only; no same-session loop",
         }], artifact=a.transfer or a.audit,
-        transfers=transfers,
+        transfers=normalized_transfers,
         native_clipboard_records=native_clipboard_records,
         internal_hwp_cut_paste=transfer.get("internal_hwp_cut_paste", "NOT_A_NATIVE_CLIPBOARD_SUBSTITUTE"))
     for kind, report in reports.items():

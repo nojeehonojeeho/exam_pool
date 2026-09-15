@@ -85,7 +85,10 @@ workspace/endnote_order/com_roundtrip/whole_question_transfer/visual_qa의
   기록한다. 전체 범위는 각 scope ID의 copy와 move를 모두 남겨 `2 * len(scope_ids)`
   행을 채워야 하며, transfer scope가 target anchor scope와 다르면 거부한다. source와
   destination 탭을 모두 정상 Close한 결과와 남은 owned PID도 기록한다. native clipboard가 한 번의 격리 재시험 뒤에도 없으면
-  `CLIPBOARD_NATIVE_UNAVAILABLE`로 FINAL을 차단한다.
+  `CLIPBOARD_NATIVE_UNAVAILABLE`로 FINAL을 차단한다. 장시간 전체 테스트는 복수의
+  격리 COM segment로 수행할 수 있지만, 최종 evidence에는 `teacher_transfer_merge.py`
+  가 source hash·native record·payload readback·세션 종료를 확인한 정확히 한
+  copy+move/ID 원장만 사용한다. segment 개수나 대표 성공 건수는 전체 범위 증거가 아니다.
 - visual_qa: physical_page_count/automated_pages/human_reviewed_pages.
   자동 렌더 생성·자동 분석·사람이 본 범위는 원장에서 구분하고 과장하지 않는다.
 
