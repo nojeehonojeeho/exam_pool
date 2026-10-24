@@ -153,3 +153,25 @@ def classify_korean_render_fonts(spans: list[dict], equation_scripts: list[str])
         exceptions.append({"text": text, "font": font, "bbox": span.get("bbox"),
                            "native_equation_occurrences": occurrences})
     return {"body_font_substitution_count": 0, "native_math_text_font_exceptions": exceptions}
+
+
+def assert_declared_symbol_upgrade(before: list, after: list, paragraph_index: int,
+                                   symbol: str, equation_script: str) -> dict:
+    """Allow one declared plain-math symbol → native equation, nothing else.
+
+    The caller must bind the original snapshot/file hash and retain the ledger.
+    This is a narrow semantic bridge, not permission to normalize other text.
+    """
+    if len(before) != len(after) or not 0 <= paragraph_index < len(before):
+        raise CollectionGateError("SYMBOL_UPGRADE_PARAGRAPH_DRIFT")
+    source = before[paragraph_index]
+    if len(source) != 1 or source[0][0] != "text" or source[0][1].count(symbol) != 1:
+        raise CollectionGateError("SYMBOL_UPGRADE_NOT_UNIQUE")
+    prefix, suffix = source[0][1].split(symbol)
+    expected = [["text", prefix], ["equation", equation_script], ["text", suffix]]
+    candidate = list(before)
+    candidate[paragraph_index] = expected
+    if after != candidate:
+        raise CollectionGateError("UNDECLARED_SYMBOL_UPGRADE_CHANGE")
+    return {"plain_symbol": symbol, "native_equation_script": equation_script,
+            "paragraph_index": paragraph_index, "other_content_unchanged": True}

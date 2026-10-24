@@ -6,6 +6,7 @@ from app.hwp_collection_manifest import (
     assert_bound_file, release_decision,
     classify_korean_render_fonts,
     audit_native_references,
+    assert_declared_symbol_upgrade,
 )
 
 
@@ -104,3 +105,21 @@ def test_invalid_body_font_reference_still_fails(tmp_path):
     native_fixture(path, "4294967295")
     with pytest.raises(CollectionGateError, match="UNBOUND_charPrIDRef"):
         audit_native_references(path)
+
+
+def test_non_kopub_rubric_is_not_a_native_math_exception():
+    with pytest.raises(CollectionGateError, match="KOPUB_FONT_NOT_ACTIVE"):
+        classify_korean_render_fonts([{"text": "채점 기준", "font": "Gulim"}], ["alpha"])
+
+
+def test_declared_symbol_upgrade_preserves_other_content():
+    before = [[["text", "상수 α 계산"]], [["text", "unchanged"]]]
+    after = [[["text", "상수 "], ["equation", "alpha"], ["text", " 계산"]], before[1]]
+    assert assert_declared_symbol_upgrade(before, after, 0, "α", "alpha")["other_content_unchanged"]
+
+
+def test_symbol_upgrade_cannot_hide_another_change():
+    before = [[["text", "상수 α 계산"]], [["text", "unchanged"]]]
+    after = [[["text", "상수 "], ["equation", "alpha"], ["text", " 계산"]], [["text", "changed"]]]
+    with pytest.raises(CollectionGateError, match="UNDECLARED_SYMBOL_UPGRADE_CHANGE"):
+        assert_declared_symbol_upgrade(before, after, 0, "α", "alpha")
