@@ -433,3 +433,13 @@ Hanword의 실제 복사·붙여넣기와 재저장은 `binaryItemIDRef`를 재�
 `PrintToPDFEx` MediaBox, 물리 page count, 300dpi 이상 렌더로 한다. 두 B4 출력이
 서로 다르거나 빈 마지막 물리 쪽·클리핑이 있으면 `B4_PHYSICAL_LAYOUT_MISMATCH`로
 FAIL한다.
+
+### 13.10 대학별 수학 논술 교정과 최신순 문제·해설 합본
+
+`UNIVERSITY_MATH_COLLECTION_WORK_INSTRUCTIONS.md`를 해당 작업의 출고 계약으로
+적용한다. 사용자 요청이 1단·자간 0%·180%·미주 없음인 경우, 위의 교사 2단·미주
+기본값을 자동 상속하지 않는다. 원문 모순·공식 무효·AI 수정 제안은 서로 구분한다.
+문항 목록의 개수뿐 아니라 문제·해설 ID와 순서, 공통 지시문을 포함한 모든 native
+문단의 보존, 수식·그림 자산과 스타일 참조를 검증한다. 기존 문서의 시각 PASS를 새
+합본에 전용하지 않으며, 300dpi 렌더 생성과 실제 전 페이지 검토를 별도로 기록한다.
+일반화된 게이트는 `app/hwp_collection_manifest.py`와 대응 합성 테스트를 사용한다.
