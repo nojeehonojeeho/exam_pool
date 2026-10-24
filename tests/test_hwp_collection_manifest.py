@@ -72,6 +72,11 @@ def test_math_korean_font_exception_is_bound_to_equation():
     assert result["native_math_text_font_exceptions"][0]["native_equation_occurrences"] == [0]
 
 
+def test_pdf_can_omit_spaces_inside_korean_math_text():
+    result = classify_korean_render_fonts([{"text": "는자연수", "font": "Haansoft Batang"}], ["k는 자연수"])
+    assert result["native_math_text_font_exceptions"][0]["native_equation_occurrences"] == [0]
+
+
 @pytest.mark.parametrize("text,font", [("본문", "Haansoft Batang"), ("또는", "Arial")])
 def test_font_substitution_is_not_silently_accepted(text, font):
     with pytest.raises(CollectionGateError, match="KOPUB_FONT_NOT_ACTIVE"):

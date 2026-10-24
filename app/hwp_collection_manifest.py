@@ -143,8 +143,11 @@ def classify_korean_render_fonts(spans: list[dict], equation_scripts: list[str])
         text, font = span["text"], span["font"]
         if not re.search("[가-힣]", text) or "KoPub" in font:
             continue
-        token = text.strip()
-        occurrences = [i for i, script in enumerate(equation_scripts) if token and token in script]
+        # PDF extraction can remove spaces from Korean inside native math.
+        # Only whitespace is normalized; symbols and Hangul are not rewritten.
+        token = re.sub(r"\s+", "", text)
+        occurrences = [i for i, script in enumerate(equation_scripts)
+                       if token and token in re.sub(r"\s+", "", script)]
         if font not in {"Haansoft Batang", "HancomEQN", "HYhwpEQ"} or not occurrences:
             raise CollectionGateError("KOPUB_FONT_NOT_ACTIVE")
         exceptions.append({"text": text, "font": font, "bbox": span.get("bbox"),
