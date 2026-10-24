@@ -3,6 +3,19 @@ from __future__ import annotations
 import re
 
 
+def compensate_paragraph_border_offset(border: dict, right_margin_delta: int) -> dict:
+    """Preserve an outside paragraph-frame edge for a declared margin change.
+
+    Native rendered vector coordinates still require verification. In particular,
+    ignoreMargin=1 alone is not proof that Hanword keeps the outer edge fixed.
+    """
+    if not isinstance(right_margin_delta, int) or "offsetRight" not in border:
+        raise ValueError("Explicit integer margin delta and border offset required")
+    result = dict(border)
+    result["offsetRight"] = str(int(border["offsetRight"]) + right_margin_delta)
+    return result
+
+
 def isolated_final_korean_span_indices(spans: list[dict], left_limit: float = 80) -> list[int]:
     """Find a left-aligned final syllable without same-row text/math neighbors.
 
